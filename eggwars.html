@@ -18,6 +18,9 @@ h1{font-size:52px;margin:10px;color:#ffd700;text-shadow:4px 4px 0 #000,-2px -2px
 .title-sub{font-size:11px;color:#666;letter-spacing:3px;margin:4px 0 18px}
 .title-ver{font-size:10px;color:#555;letter-spacing:2px;margin:0 0 12px}
 .credits-tiny{position:fixed;bottom:8px;right:12px;font-size:9px;color:#444;letter-spacing:1px;z-index:21}
+.touch-btn{position:fixed;z-index:5;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.3);border-radius:50%;color:#fff;font-family:inherit;font-size:14px;display:flex;align-items:center;justify-content:center;pointer-events:auto;user-select:none;-webkit-user-select:none;touch-action:none}
+.touch-btn:active{background:rgba(255,255,255,0.35)}
+#touchUI{display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:4;pointer-events:none}
 .grade-btn{background:#333!important;border-color:#666!important}
 .grade-btn.act{background:#b8860b!important;border-color:#ffd700!important;color:#fff!important}
 .skin-btn{background:#222!important;border-color:#555!important}
@@ -110,6 +113,16 @@ h2{color:#ffd700;margin:8px}
 </div>
 <button class="btn pix" id="closeMulti">BACK</button>
 </div>
+</div>
+<div id="touchUI">
+<div id="joystickArea" style="position:fixed;left:10px;bottom:80px;width:140px;height:140px;pointer-events:auto;touch-action:none">
+<canvas id="joyCanvas" width="140" height="140" style="width:140px;height:140px"></canvas>
+</div>
+<button class="touch-btn" id="tJump" style="right:20px;bottom:180px;width:60px;height:60px">JUMP</button>
+<button class="touch-btn" id="tAttack" style="right:90px;bottom:110px;width:70px;height:70px;background:rgba(255,60,60,0.25);border-color:rgba(255,100,100,0.4)">ATK</button>
+<button class="touch-btn" id="tPlace" style="right:20px;bottom:100px;width:60px;height:60px;background:rgba(60,120,255,0.2);border-color:rgba(100,150,255,0.4)">BLD</button>
+<button class="touch-btn" id="tInteract" style="right:90px;bottom:195px;width:50px;height:50px;background:rgba(255,215,0,0.2);border-color:rgba(255,215,0,0.4);font-size:12px">E</button>
+<div id="touchLookArea" style="position:fixed;right:0;top:0;width:55%;height:65%;pointer-events:auto;touch-action:none"></div>
 </div>
 <div class="credits-tiny pix">a sunnyday technologies project</div>
 
@@ -1516,7 +1529,7 @@ function update(dt){
   if(G.state==='ENDED'){updateParts(dt);return}
   if(G.state!=='PLAYING')return;
   G.time+=dt;
-  processInput(dt);
+  processInput(dt);processTouchInput(dt);
   for(const p of G.players){if(p.isAI)aiUpdate(p,dt);if(!p.isRemote)p.update(dt)}
   if(G.mode==='multi')netSync(dt);
   if(shakeT>0)shakeT-=dt;
@@ -1704,6 +1717,107 @@ function startMulti(hosting){
   document.getElementById('multiMenu').classList.add('hid');
   startGame('multi',name);
 }
+// ============================== TOUCH CONTROLS ==============================
+const isMobile='ontouchstart'in window||navigator.maxTouchPoints>0;
+let touchJoy={active:false,x:0,y:0,id:null};
+let touchLook={active:false,lx:0,ly:0,id:null};
+let touchAttacking=false,touchPlacing=false;
+
+function initTouch(){
+  if(!isMobile)return;
+  document.getElementById('touchUI').style.display='block';
+  document.body.style.cursor='default';
+  // Joystick
+  const joyArea=document.getElementById('joystickArea');
+  const joyCtx=document.getElementById('joyCanvas').getContext('2d');
+  function drawJoy(){
+    joyCtx.clearRect(0,0,140,140);
+    joyCtx.fillStyle='rgba(255,255,255,0.1)';
+    joyCtx.beginPath();joyCtx.arc(70,70,65,0,PI*2);joyCtx.fill();
+    joyCtx.strokeStyle='rgba(255,255,255,0.25)';joyCtx.lineWidth=2;
+    joyCtx.beginPath();joyCtx.arc(70,70,65,0,PI*2);joyCtx.stroke();
+    const kx=70+touchJoy.x*30,ky=70+touchJoy.y*30;
+    joyCtx.fillStyle='rgba(255,255,255,0.4)';
+    joyCtx.beginPath();joyCtx.arc(kx,ky,22,0,PI*2);joyCtx.fill();
+  }
+  joyArea.addEventListener('touchstart',e=>{
+    e.preventDefault();const t=e.changedTouches[0];
+    touchJoy.active=true;touchJoy.id=t.identifier;
+    const r=joyArea.getBoundingClientRect();
+    touchJoy.x=(t.clientX-r.left-70)/65;touchJoy.y=(t.clientY-r.top-70)/65;
+  },{passive:false});
+  joyArea.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches){if(t.identifier===touchJoy.id){
+      const r=joyArea.getBoundingClientRect();
+      let jx=(t.clientX-r.left-70)/65,jy=(t.clientY-r.top-70)/65;
+      const m=Math.hypot(jx,jy);if(m>1){jx/=m;jy/=m}
+      touchJoy.x=jx;touchJoy.y=jy;
+    }}
+  },{passive:false});
+  joyArea.addEventListener('touchend',e=>{
+    for(const t of e.changedTouches)if(t.identifier===touchJoy.id){touchJoy.active=false;touchJoy.x=0;touchJoy.y=0}
+  });
+  // Look area (right side drag)
+  const lookArea=document.getElementById('touchLookArea');
+  lookArea.addEventListener('touchstart',e=>{
+    e.preventDefault();const t=e.changedTouches[0];
+    touchLook.active=true;touchLook.id=t.identifier;touchLook.lx=t.clientX;touchLook.ly=t.clientY;
+  },{passive:false});
+  lookArea.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches){if(t.identifier===touchLook.id){
+      const dx=t.clientX-touchLook.lx,dy=t.clientY-touchLook.ly;
+      cam.yaw-=dx*0.004;cam.pitch-=dy*0.004;
+      cam.pitch=Math.max(-PI/2+.01,Math.min(PI/2-.01,cam.pitch));
+      touchLook.lx=t.clientX;touchLook.ly=t.clientY;
+    }}
+  },{passive:false});
+  lookArea.addEventListener('touchend',e=>{
+    for(const t of e.changedTouches)if(t.identifier===touchLook.id)touchLook.active=false;
+  });
+  // Buttons
+  document.getElementById('tJump').addEventListener('touchstart',e=>{e.preventDefault();const p=G.local;if(p&&p.onGround)p.vy=CFG.JUMP_VEL},{passive:false});
+  document.getElementById('tAttack').addEventListener('touchstart',e=>{e.preventDefault();touchAttacking=true},{passive:false});
+  document.getElementById('tAttack').addEventListener('touchend',e=>{touchAttacking=false});
+  document.getElementById('tPlace').addEventListener('touchstart',e=>{e.preventDefault();touchPlacing=true},{passive:false});
+  document.getElementById('tPlace').addEventListener('touchend',e=>{touchPlacing=false});
+  document.getElementById('tInteract').addEventListener('touchstart',e=>{
+    e.preventDefault();
+    // Simulate E key press
+    const evt=new KeyboardEvent('keydown',{code:'KeyE',key:'e',bubbles:true});
+    window.dispatchEvent(evt);
+  },{passive:false});
+  // Draw joystick loop
+  setInterval(drawJoy,50);
+}
+
+function processTouchInput(dt){
+  if(!isMobile)return;
+  const p=G.local;if(!p||!p.alive||shopOpen||G.challenge)return;
+  // Joystick movement
+  if(touchJoy.active||(touchJoy.x!==0||touchJoy.y!==0)){
+    const mx=touchJoy.x,mz=-touchJoy.y;
+    if(Math.abs(mx)>0.1||Math.abs(mz)>0.1){
+      const f=[-Math.sin(cam.yaw),0,-Math.cos(cam.yaw)],r=[Math.cos(cam.yaw),0,-Math.sin(cam.yaw)];
+      const spd=p.speed();
+      const vx=(r[0]*mx+f[0]*mz)*spd,vz=(r[2]*mx+f[2]*mz)*spd;
+      const ox=p.x;p.x+=vx*dt;if(aabbH(p.x,p.y,p.z))p.x=ox;
+      const oz=p.z;p.z+=vz*dt;if(aabbH(p.x,p.y,p.z))p.z=oz;
+      p.walkDist+=spd*dt;
+    }
+  }
+  p.yaw=cam.yaw;p.pitch=cam.pitch;
+  const dir=cFwd(cam.pitch,cam.yaw);
+  const hit=rcast(p.x,p.y+1.5,p.z,dir[0],dir[1],dir[2],CFG.REACH);
+  if(touchAttacking){
+    const sel=p.inv[p.slot];
+    if(sel&&sel.item==='pickaxe'&&hit&&isBreakable(hit.block))p.doBreak(hit,dt);
+    else p.doMelee(dir);
+  }
+  if(touchPlacing)p.doPlace(hit);
+}
+
 // Screen shake
 let shakeT=0,shakeAmt=0;
 function addShake(a){shakeT=Math.max(shakeT,.25);shakeAmt=Math.max(shakeAmt,a)}
@@ -1811,6 +1925,14 @@ document.getElementById('boardBtn').addEventListener('click',showLeaderboard);
 document.getElementById('closeLB').addEventListener('click',()=>document.getElementById('lboard').classList.add('hid'));
 document.getElementById('howBtn').addEventListener('click',toggleHow);
 document.getElementById('closeHow').addEventListener('click',toggleHow);
+initTouch();
+// On mobile, skip pointer lock and start directly
+if(isMobile){
+  document.getElementById('lockMsg').onclick=()=>{
+    document.getElementById('lockMsg').classList.add('hid');
+    ptrLock=true; // fake pointer lock for mobile
+  };
+}
 requestAnimationFrame(frame);
 </script>
 </body>
