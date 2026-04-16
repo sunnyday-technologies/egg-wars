@@ -169,20 +169,20 @@ const CFG={
 };
 
 // Block types
-const B={AIR:0,GRASS:1,DIRT:2,STONE:3,WOOL_R:4,WOOL_B:5,WOOD:6,OBSIDIAN:7,
+const B={AIR:0,GRASS:1,DIRT:2,STONE:3,CEMENT_R:4,CEMENT_B:5,WOOD:6,OBSIDIAN:7,
   EGG_R:8,EGG_B:9,STATION_IRON:10,STATION_GOLD:11,STATION_DIAMOND:12,SHOP:13,
   BRICK:14,VINE:15};
-const SOLID=new Set([B.GRASS,B.DIRT,B.STONE,B.WOOL_R,B.WOOL_B,B.WOOD,B.OBSIDIAN,
+const SOLID=new Set([B.GRASS,B.DIRT,B.STONE,B.CEMENT_R,B.CEMENT_B,B.WOOD,B.OBSIDIAN,
   B.EGG_R,B.EGG_B,B.STATION_IRON,B.STATION_GOLD,B.STATION_DIAMOND,B.SHOP,B.BRICK,B.VINE]);
 function isSolid(b){return SOLID.has(b)}
 function isEgg(b){return b===B.EGG_R||b===B.EGG_B}
 function eggTeam(b){return b===B.EGG_R?'red':b===B.EGG_B?'blue':null}
-function isBreakable(b){return b===B.WOOL_R||b===B.WOOL_B||b===B.STONE||b===B.WOOD||b===B.OBSIDIAN||b===B.BRICK}
+function isBreakable(b){return b===B.CEMENT_R||b===B.CEMENT_B||b===B.STONE||b===B.WOOD||b===B.OBSIDIAN||b===B.BRICK}
 function isStation(b){return b===B.STATION_IRON||b===B.STATION_GOLD||b===B.STATION_DIAMOND}
 
 const TEAMS={
-  red:{color:'#e04545',rgb:[.88,.27,.27],dark:[.55,.16,.16],wool:B.WOOL_R,egg:B.EGG_R,ix:4,iz:17},
-  blue:{color:'#4a7fd6',rgb:[.29,.50,.84],dark:[.16,.28,.52],wool:B.WOOL_B,egg:B.EGG_B,ix:31,iz:17},
+  red:{color:'#e04545',rgb:[.88,.27,.27],dark:[.55,.16,.16],cement:B.CEMENT_R,egg:B.EGG_R,ix:4,iz:17},
+  blue:{color:'#4a7fd6',rgb:[.29,.50,.84],dark:[.16,.28,.52],cement:B.CEMENT_B,egg:B.EGG_B,ix:31,iz:17},
 };
 const TEAM_ORDER=['red','blue'];
 
@@ -191,8 +191,8 @@ const BC={};
 BC[B.GRASS]={top:[.49,.73,.29],side:[.42,.31,.19],bot:[.42,.31,.19]};
 BC[B.DIRT]={top:[.42,.31,.19],side:[.40,.29,.17],bot:[.38,.27,.15]};
 BC[B.STONE]={top:[.55,.55,.55],side:[.50,.50,.50],bot:[.45,.45,.45]};
-BC[B.WOOL_R]={top:[.88,.27,.27],side:[.68,.18,.18],bot:[.55,.14,.14]};
-BC[B.WOOL_B]={top:[.29,.50,.84],side:[.20,.38,.68],bot:[.16,.28,.52]};
+BC[B.CEMENT_R]={top:[.85,.35,.33],side:[.72,.28,.26],bot:[.58,.22,.20]};
+BC[B.CEMENT_B]={top:[.35,.52,.82],side:[.26,.42,.70],bot:[.20,.32,.56]};
 BC[B.WOOD]={top:[.55,.38,.16],side:[.45,.30,.12],bot:[.40,.26,.10]};
 BC[B.OBSIDIAN]={top:[.22,.14,.45],side:[.18,.11,.41],bot:[.15,.09,.35]};
 BC[B.EGG_R]={top:[1,.65,.65],side:[.92,.35,.35],bot:[.7,.22,.22]};
@@ -204,7 +204,7 @@ BC[B.SHOP]={top:[.9,.78,.35],side:[.75,.6,.25],bot:[.55,.42,.15]};
 BC[B.BRICK]={top:[.6,.35,.3],side:[.55,.30,.25],bot:[.45,.25,.2]};
 BC[B.VINE]={top:[.3,.55,.25],side:[.25,.48,.2],bot:[.2,.4,.15]};
 
-const HARDNESS={[B.WOOL_R]:.3,[B.WOOL_B]:.3,[B.STONE]:1.2,[B.WOOD]:.5,[B.OBSIDIAN]:4,[B.BRICK]:.8,[B.VINE]:.2};
+const HARDNESS={[B.CEMENT_R]:.5,[B.CEMENT_B]:.5,[B.STONE]:1.2,[B.WOOD]:.5,[B.OBSIDIAN]:4,[B.BRICK]:.8,[B.VINE]:.2};
 
 // ============================== MATH ==============================
 function m4(){const m=new Float32Array(16);m[0]=m[5]=m[10]=m[15]=1;return m}
@@ -292,10 +292,10 @@ void main(){
   vec3 c;
   if(y>0.0)c=mix(mid,top,min(y*1.5,1.0));
   else c=mix(mid,bot,min(-y*1.5,1.0));
-  vec2 st=vP*30.0+vec2(t*3.0,t*1.5);
-  float star=step(0.988,hash(floor(st)));
-  float twinkle=0.5+0.5*sin(uTime*3.0+hash(floor(st))*20.0);
-  c+=star*twinkle*0.6*max(0.0,0.6-y);
+  vec2 st=vP*60.0+vec2(t*3.0,t*1.5);
+  float star=step(0.994,hash(floor(st)));
+  float twinkle=0.4+0.4*sin(uTime*3.0+hash(floor(st))*20.0);
+  c+=star*twinkle*0.45*max(0.0,0.6-y);
   vec2 st2=vP*8.0+vec2(t*5.0,0.0);
   float nebula=hash(floor(st2))*0.03*max(0.0,0.5-abs(y));
   c+=vec3(nebula*0.8,nebula*0.3,nebula*1.2);
@@ -752,7 +752,7 @@ class Player{
   doPlace(hit){
     if(this.placeCD>0||this.sprint)return;const sel=this.inv[this.slot];if(!sel)return;
     let bt=null;
-    if(sel.item==='wool')bt=TEAMS[this.team].wool;
+    if(sel.item==='cement')bt=TEAMS[this.team].cement;
     else if(sel.item==='stone')bt=B.STONE;
     else if(sel.item==='obsidian')bt=B.OBSIDIAN;
     else if(sel.item==='tnt'){this.placeTNT(hit);return}
@@ -820,7 +820,7 @@ function updateTNT(dt){
 
 // ============================== SHOP ==============================
 const SITEMS=[
-  {tab:'Blocks',name:'Wool x16',cost:{iron:4},fn:p=>p.addItem('wool',16)},
+  {tab:'Blocks',name:'Cement x16',cost:{iron:4},fn:p=>p.addItem('cement',16)},
   {tab:'Blocks',name:'Stone x4',cost:{iron:12},fn:p=>p.addItem('stone',4)},
   {tab:'Blocks',name:'Obsidian x1',cost:{diamond:2},fn:p=>p.addItem('obsidian',1)},
   {tab:'Weapons',name:'Wood Sword',cost:{iron:4},req:p=>p.swordTier<1,fn:p=>{p.swordTier=1;p.addItem('sword',1)}},
@@ -899,7 +899,7 @@ function aiUpdate(ai,dt){
 }
 function aiBuy(ai){
   if(ai.swordTier<1&&canAff(ai,{iron:4})){pay(ai,{iron:4});ai.swordTier=1;ai.addItem('sword',1)}
-  if(canAff(ai,{iron:4})){pay(ai,{iron:4});ai.addItem('wool',16)}
+  if(canAff(ai,{iron:4})){pay(ai,{iron:4});ai.addItem('cement',16)}
   if(ai.swordTier<2&&canAff(ai,{gold:3})){pay(ai,{gold:3});ai.swordTier=2}
   if(ai.armorTier<1&&canAff(ai,{iron:30})){pay(ai,{iron:30});ai.armorTier=1}
   if(ai.swordTier<3&&canAff(ai,{gold:8})){pay(ai,{gold:8});ai.swordTier=3}
@@ -931,9 +931,15 @@ function aiMoveTo(ai,tx,tz,dt,bridge){
   const nx=dx/d,nz=dz/d;ai.yaw=Math.atan2(-nx,-nz);
   const spd=ai.speed();
   const fx=Math.floor(ai.x+nx*.8),fy=Math.floor(ai.y),fz=Math.floor(ai.z+nz*.8);
-  if(bridge&&!isSolid(wG(fx,fy-1,fz))&&ai.aiBridgeCD<=0){
-    const ws=ai.findSlot('wool');
-    if(ws>=0){wS(fx,fy-1,fz,TEAMS[ai.team].wool);ai.inv[ws].n--;if(ai.inv[ws].n<=0)ai.inv[ws]=null;ai.aiBridgeCD=.3;return}
+  // Check if next step is over void
+  const groundAhead=isSolid(wG(fx,fy-1,fz));
+  if(!groundAhead){
+    if(bridge&&ai.aiBridgeCD<=0){
+      const ws=ai.findSlot('cement');
+      if(ws>=0){wS(fx,fy-1,fz,TEAMS[ai.team].cement);ai.inv[ws].n--;if(ai.inv[ws].n<=0)ai.inv[ws]=null;ai.aiBridgeCD=.3;return}
+    }
+    // No cement and void ahead — DON'T walk off! Go back to farming instead.
+    if(!groundAhead){ai.aiState='farm';return}
   }
   if(isSolid(wG(fx,fy,fz))&&ai.onGround)ai.vy=CFG.JUMP_VEL;
   if(isSolid(wG(fx,fy+1,fz))){const fh={x:fx,y:fy+1,z:fz,block:wG(fx,fy+1,fz)};ai.doBreak(fh,dt)}
@@ -1265,8 +1271,8 @@ function renderHUD(){
   if(G.tut&&!G.tut.done&&G.state==='PLAYING'&&p.alive&&!shopOpen&&!G.challenge){
     const tSteps=[
       {msg:'Walk to a glowing POWER CORE station!',tx:TEAMS.red.ix+2+.5,tz:TEAMS.red.iz+2+.5,check:()=>G.score.total>=1},
-      {msg:'Great! Now visit the SHOP ($) — press E near the gold block!',tx:G.shops.red?G.shops.red.x+.5:0,tz:G.shops.red?G.shops.red.z+.5:0,check:()=>p.swordTier>=1||p.findSlot('wool')>=0},
-      {msg:'Buy WOOL and a SWORD! Then build a bridge to Jerry\'s island!',tx:32,tz:24,check:()=>{
+      {msg:'Great! Now visit the SHOP ($) — press E near the gold block!',tx:G.shops.red?G.shops.red.x+.5:0,tz:G.shops.red?G.shops.red.z+.5:0,check:()=>p.swordTier>=1||p.findSlot('cement')>=0},
+      {msg:'Buy CEMENT and a SWORD! Then build a bridge to Jerry\'s island!',tx:32,tz:24,check:()=>{
         const e=G.eggs.blue;return e&&Math.hypot(p.x-e.x,p.z-e.z)<10}},
       {msg:'You\'re close! ATTACK Jerry\'s EGG to win!',tx:G.eggs.blue?G.eggs.blue.x+.5:36,tz:G.eggs.blue?G.eggs.blue.z+.5:22,check:()=>false},
     ];
@@ -1302,7 +1308,7 @@ function drawItemH(c,x,y,s,name,p){
   if(name==='fist'){c.fillStyle='#f4c48a';c.fillRect(x+s/4,y+s/4,s/2,s/2)}
   else if(name==='sword'){c.fillStyle=['#b5822a','#8b8b8b','#d0d0ff','#7dffe9'][Math.max(0,p.swordTier-1)];c.fillRect(x+s/2-2,y+3,4,s-10);c.fillStyle='#8b4513';c.fillRect(x+s/2-4,y+s-10,8,4)}
   else if(name==='pickaxe'){c.fillStyle=['#b5822a','#8b8b8b','#d0d0ff','#7dffe9'][Math.max(0,p.pickTier-1)];c.fillRect(x+2,y+3,s-4,4);c.fillStyle='#8b4513';c.fillRect(x+s/2-2,y+6,4,s-10)}
-  else if(name==='wool'){c.fillStyle=TEAMS[p.team].color;c.fillRect(x+2,y+2,s-4,s-4)}
+  else if(name==='cement'){c.fillStyle=TEAMS[p.team].color;c.fillRect(x+2,y+2,s-4,s-4)}
   else if(name==='stone'){c.fillStyle='#8b8b8b';c.fillRect(x+2,y+2,s-4,s-4)}
   else if(name==='obsidian'){c.fillStyle='#2d1b69';c.fillRect(x+2,y+2,s-4,s-4)}
   else if(name==='bow'){c.strokeStyle='#b5822a';c.lineWidth=2;c.beginPath();c.arc(x+s/2,y+s/2,s/2-2,-PI/3,PI/3);c.stroke()}
@@ -1318,7 +1324,7 @@ const PUPS=[
   {name:'IRON RUSH',color:[.8,.8,.85],fn:p=>{p.res.iron=Math.min(64,p.res.iron+10);pushChat('🔩 +10 IRON!')}},
   {name:'GOLD RUSH',color:[1,.85,.2],fn:p=>{p.res.gold=Math.min(16,p.res.gold+5);pushChat('✨ +5 GOLD!')}},
   {name:'DIAMOND DROP',color:[.3,.9,.95],fn:p=>{p.res.diamond=Math.min(8,p.res.diamond+2);pushChat('💎 +2 DIAMOND!')}},
-  {name:'SUPER WOOL',color:[.9,.5,.9],fn:p=>{p.addItem('wool',32);pushChat('🧱 +32 WOOL!')}},
+  {name:'SUPER CEMENT',color:[.9,.5,.9],fn:p=>{p.addItem('cement',32);pushChat('🧱 +32 CEMENT!')}},
 ];
 let pupTimer=0;
 function updatePowerups(dt){
