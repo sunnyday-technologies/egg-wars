@@ -1138,38 +1138,121 @@ function renderHUD(){
 
   // Break progress
   if(p.breakTgt&&p.breakProg>0){hx.fillStyle='rgba(0,0,0,0.5)';hx.fillRect(cx-30,cy+18,60,6);hx.fillStyle='#ffd700';hx.fillRect(cx-30,cy+18,60*Math.min(1,p.breakProg/1.2),6)}
-  // First-person hand/weapon
+  // First-person hand/weapon (detailed rendering)
   const sel=p.inv[p.slot];
-  const handX=W*0.72,handY=H*0.55;
-  const swOff=p.swingT>0?Math.sin(p.swingT*12)*30:0;
+  const handX=W*0.68,handY=H*0.48;
+  const swOff=p.swingT>0?Math.sin(p.swingT*12)*35:0;
+  const bob=Math.sin(p.walkDist*4)*3;
   hx.save();
-  hx.translate(handX+swOff,handY-swOff*0.5);
-  // Arm (uses skin colors)
+  hx.translate(handX+swOff,handY-swOff*0.5+bob);
+  hx.rotate(-0.15+swOff*0.008);
   const sk=SKINS[G.skin||'default']||SKINS.default;
   const armC=sk.arms||[.75,.6,.38];
-  const armH='rgb('+Math.floor(armC[0]*255)+','+Math.floor(armC[1]*255)+','+Math.floor(armC[2]*255)+')';
-  const armD='rgb('+Math.floor(armC[0]*200)+','+Math.floor(armC[1]*200)+','+Math.floor(armC[2]*200)+')';
-  hx.fillStyle=armH;
-  hx.fillRect(0,40,28,80);
-  hx.fillStyle=armD;
-  hx.fillRect(4,44,20,72);
-  // Held item
+  const r255=(c,m=1)=>'rgb('+Math.floor(c[0]*255*m)+','+Math.floor(c[1]*255*m)+','+Math.floor(c[2]*255*m)+')';
+  // Arm — 3D shaded with highlight
+  hx.fillStyle=r255(armC,.7);hx.fillRect(-2,42,38,90);
+  hx.fillStyle=r255(armC,1);hx.fillRect(2,44,30,86);
+  hx.fillStyle=r255(armC,1.15);hx.fillRect(6,46,18,80);
+  // Wrist detail
+  hx.fillStyle=r255(armC,.6);hx.fillRect(2,38,30,6);
+
   if(sel&&sel.item==='sword'){
-    const sc=['#b5822a','#8b8b8b','#c0c8e8','#7dffe9'][Math.max(0,p.swordTier-1)];
-    hx.fillStyle='#5a3510';hx.fillRect(6,28,16,14);
-    hx.fillStyle=sc;hx.fillRect(10,-50,8,80);
-    hx.fillStyle='#fff';hx.globalAlpha=0.3;hx.fillRect(12,-45,3,70);hx.globalAlpha=1;
+    const cols=[['#8b6914','#c49a2a','#e0b840'],['#6a6a6a','#999','#c8c8c8'],['#6878aa','#8ea0d8','#c0d0f8'],['#30a898','#50d8c0','#90ffe8']];
+    const sc=cols[Math.max(0,p.swordTier-1)];
+    const tierName=['WOOD','STONE','IRON','DIAMOND'][Math.max(0,p.swordTier-1)];
+    // Handle/grip
+    hx.fillStyle='#3a2008';hx.fillRect(8,22,18,22);
+    hx.fillStyle='#5a3510';hx.fillRect(10,24,14,18);
+    hx.fillStyle='#7a4a18';hx.fillRect(12,26,10,14);
+    // Cross guard
+    hx.fillStyle='#8a7530';hx.fillRect(2,16,30,8);
+    hx.fillStyle='#bda040';hx.fillRect(4,18,26,4);
+    // Blade — 3D with highlight edge
+    hx.fillStyle=sc[0];hx.fillRect(8,-65,18,82);
+    hx.fillStyle=sc[1];hx.fillRect(10,-63,14,78);
+    hx.fillStyle=sc[2];hx.globalAlpha=.5;hx.fillRect(12,-60,4,72);hx.globalAlpha=1;
+    // Blade tip
+    hx.fillStyle=sc[1];
+    hx.beginPath();hx.moveTo(8,-65);hx.lineTo(17,-80);hx.lineTo(26,-65);hx.fill();
+    // Edge shine
+    hx.strokeStyle='rgba(255,255,255,0.3)';hx.lineWidth=1;
+    hx.beginPath();hx.moveTo(12,-60);hx.lineTo(12,10);hx.stroke();
+
   }else if(sel&&sel.item==='pickaxe'){
-    const pc=['#b5822a','#8b8b8b','#c0c8e8','#7dffe9'][Math.max(0,p.pickTier-1)];
-    hx.fillStyle='#5a3510';hx.fillRect(10,-20,8,62);
-    hx.fillStyle=pc;hx.fillRect(0,-28,28,12);
+    const cols=[['#8b6914','#c49a2a'],['#6a6a6a','#aaa'],['#6878aa','#a0b8e0'],['#30a898','#70e8d0']];
+    const pc=cols[Math.max(0,p.pickTier-1)];
+    // Handle — wooden stick with grain
+    hx.fillStyle='#3a2008';hx.fillRect(12,-30,12,74);
+    hx.fillStyle='#5a3510';hx.fillRect(14,-28,8,70);
+    hx.fillStyle='#7a4a18';hx.globalAlpha=.4;hx.fillRect(15,-20,2,50);hx.globalAlpha=1;
+    // Head — curved pick shape
+    hx.fillStyle=pc[0];
+    hx.beginPath();hx.moveTo(-4,-36);hx.lineTo(8,-30);hx.lineTo(8,-24);hx.lineTo(-2,-28);hx.fill();
+    hx.beginPath();hx.moveTo(40,-36);hx.lineTo(28,-30);hx.lineTo(28,-24);hx.lineTo(38,-28);hx.fill();
+    hx.fillRect(4,-34,28,12);
+    hx.fillStyle=pc[1];hx.fillRect(6,-32,24,8);
+    // Pick points shine
+    hx.fillStyle='rgba(255,255,255,0.3)';
+    hx.fillRect(-2,-35,4,2);hx.fillRect(34,-35,4,2);
+
   }else if(sel&&sel.item==='bow'){
-    hx.strokeStyle='#8b5a1f';hx.lineWidth=4;
-    hx.beginPath();hx.arc(14,20,35,-PI/2.5,PI/2.5);hx.stroke();
-    hx.strokeStyle='#ddd';hx.lineWidth=1;
-    hx.beginPath();hx.moveTo(14,-12);hx.lineTo(14,52);hx.stroke();
+    // Bow body — curved wood
+    hx.strokeStyle='#5a3510';hx.lineWidth=6;
+    hx.beginPath();hx.arc(16,15,42,-PI/2.2,PI/2.2);hx.stroke();
+    hx.strokeStyle='#8b5a1f';hx.lineWidth=3;
+    hx.beginPath();hx.arc(16,15,42,-PI/2.2,PI/2.2);hx.stroke();
+    // Wood grain on bow
+    hx.strokeStyle='rgba(139,90,31,0.4)';hx.lineWidth=1;
+    hx.beginPath();hx.arc(16,15,40,-PI/2.5,PI/2.5);hx.stroke();
+    // String
+    const drawPct=p.bowDraw>0?Math.min(1,p.bowDraw/CFG.BOW_DRAW):0;
+    const stringPull=drawPct*12;
+    hx.strokeStyle='#ddd';hx.lineWidth=2;
+    hx.beginPath();hx.moveTo(16,-24);
+    hx.quadraticCurveTo(16-stringPull,15,16,54);hx.stroke();
+    // Arrow nocked if drawing
+    if(drawPct>0){
+      hx.strokeStyle='#c0a060';hx.lineWidth=2;
+      hx.beginPath();hx.moveTo(16-stringPull+2,15);hx.lineTo(50,15);hx.stroke();
+      hx.fillStyle='#888';hx.beginPath();hx.moveTo(50,15);hx.lineTo(44,11);hx.lineTo(44,19);hx.fill();
+    }
+
+  }else if(sel&&(sel.item==='cement'||sel.item==='stone'||sel.item==='obsidian')){
+    // Block in hand
+    const bc=sel.item==='cement'?TEAMS[p.team].color:sel.item==='stone'?'#8b8b8b':'#2d1b69';
+    const bd=sel.item==='cement'?TEAMS[p.team].dark||'#800':sel.item==='stone'?'#666':'#1a0f40';
+    // 3D block (isometric-ish)
+    hx.fillStyle=bd;hx.fillRect(-2,-10,34,34);
+    hx.fillStyle=bc;hx.fillRect(0,-8,30,30);
+    // Top face (lighter)
+    hx.fillStyle='rgba(255,255,255,0.15)';hx.fillRect(0,-8,30,10);
+    // Grid lines
+    hx.strokeStyle='rgba(0,0,0,0.2)';hx.lineWidth=1;
+    hx.strokeRect(0,-8,30,30);
+
+  }else if(sel&&sel.item==='tnt'){
+    // TNT block
+    hx.fillStyle='#8b1a1a';hx.fillRect(-2,-6,34,34);
+    hx.fillStyle='#cc2222';hx.fillRect(0,-4,30,30);
+    hx.fillStyle='#eee';hx.font='bold 12px monospace';hx.fillText('TNT',4,14);
+    // Fuse on top
+    hx.strokeStyle='#444';hx.lineWidth=2;
+    hx.beginPath();hx.moveTo(15,-4);hx.quadraticCurveTo(20,-16,15,-20);hx.stroke();
+    hx.fillStyle='#ff4';hx.beginPath();hx.arc(15,-20,3,0,PI*2);hx.fill();
+
   }else{
-    hx.fillStyle='#d4a66a';hx.fillRect(2,20,24,22);
+    // Fist — detailed hand with fingers
+    const hc=sk.head||[.96,.77,.54];
+    hx.fillStyle=r255(hc,.8);hx.fillRect(0,14,28,28);
+    hx.fillStyle=r255(hc,1);hx.fillRect(2,16,24,24);
+    // Fingers
+    hx.fillStyle=r255(hc,.95);
+    for(let i=0;i<4;i++)hx.fillRect(2+i*6,8,5,10);
+    // Thumb
+    hx.fillStyle=r255(hc,.85);hx.fillRect(-4,18,8,14);
+    // Knuckle highlights
+    hx.fillStyle='rgba(255,255,255,0.15)';
+    for(let i=0;i<4;i++)hx.fillRect(3+i*6,15,4,2);
   }
   hx.restore();
   // Swing arc
@@ -1305,16 +1388,76 @@ function renderHUD(){
   }
 }
 function drawItemH(c,x,y,s,name,p){
-  if(name==='fist'){c.fillStyle='#f4c48a';c.fillRect(x+s/4,y+s/4,s/2,s/2)}
-  else if(name==='sword'){c.fillStyle=['#b5822a','#8b8b8b','#d0d0ff','#7dffe9'][Math.max(0,p.swordTier-1)];c.fillRect(x+s/2-2,y+3,4,s-10);c.fillStyle='#8b4513';c.fillRect(x+s/2-4,y+s-10,8,4)}
-  else if(name==='pickaxe'){c.fillStyle=['#b5822a','#8b8b8b','#d0d0ff','#7dffe9'][Math.max(0,p.pickTier-1)];c.fillRect(x+2,y+3,s-4,4);c.fillStyle='#8b4513';c.fillRect(x+s/2-2,y+6,4,s-10)}
-  else if(name==='cement'){c.fillStyle=TEAMS[p.team].color;c.fillRect(x+2,y+2,s-4,s-4)}
-  else if(name==='stone'){c.fillStyle='#8b8b8b';c.fillRect(x+2,y+2,s-4,s-4)}
-  else if(name==='obsidian'){c.fillStyle='#2d1b69';c.fillRect(x+2,y+2,s-4,s-4)}
-  else if(name==='bow'){c.strokeStyle='#b5822a';c.lineWidth=2;c.beginPath();c.arc(x+s/2,y+s/2,s/2-2,-PI/3,PI/3);c.stroke()}
-  else if(name==='arrow'){c.strokeStyle='#ddd';c.lineWidth=2;c.beginPath();c.moveTo(x+3,y+s-3);c.lineTo(x+s-3,y+3);c.stroke()}
-  else if(name==='apple'){c.fillStyle='#e8c547';c.beginPath();c.arc(x+s/2,y+s/2+2,s/2-3,0,PI*2);c.fill()}
-  else if(name==='tnt'){c.fillStyle='#c33';c.fillRect(x+2,y+4,s-4,s-6);c.fillStyle='#fff';c.font='8px monospace';c.fillText('TNT',x+4,y+s/2+3)}
+  const cx=x+s/2,cy=y+s/2;
+  if(name==='fist'){
+    c.fillStyle='#d4a66a';c.fillRect(x+s/4,y+s/4,s/2,s/2);
+    c.fillStyle='#eabd82';c.fillRect(x+s/4+2,y+s/4+2,s/2-4,s/2-4);
+    c.fillStyle='#c4965a';for(let i=0;i<3;i++)c.fillRect(x+s/4+2+i*4,y+s/4-2,3,4);
+  }else if(name==='sword'){
+    const cols=[['#8b6914','#c49a2a'],['#6a6a6a','#aaa'],['#6878aa','#a0b8e0'],['#30a898','#70e8d0']];
+    const sc=cols[Math.max(0,p.swordTier-1)];
+    // Blade
+    c.fillStyle=sc[0];c.fillRect(cx-2,y+2,4,s-12);
+    c.fillStyle=sc[1];c.fillRect(cx-1,y+3,2,s-14);
+    // Tip
+    c.fillStyle=sc[0];c.beginPath();c.moveTo(cx-2,y+2);c.lineTo(cx,y-1);c.lineTo(cx+2,y+2);c.fill();
+    // Guard
+    c.fillStyle='#bda040';c.fillRect(x+2,y+s-12,s-4,3);
+    // Handle
+    c.fillStyle='#5a3510';c.fillRect(cx-2,y+s-9,4,8);
+    c.fillStyle='#7a4a18';c.fillRect(cx-1,y+s-8,2,6);
+  }else if(name==='pickaxe'){
+    const cols=[['#8b6914','#c49a2a'],['#6a6a6a','#aaa'],['#6878aa','#a0b8e0'],['#30a898','#70e8d0']];
+    const pc=cols[Math.max(0,p.pickTier-1)];
+    // Handle
+    c.fillStyle='#5a3510';c.fillRect(cx-1,y+4,3,s-6);
+    c.fillStyle='#7a4a18';c.fillRect(cx,y+5,1,s-8);
+    // Head
+    c.fillStyle=pc[0];c.fillRect(x+2,y+2,s-4,5);
+    c.fillStyle=pc[1];c.fillRect(x+3,y+3,s-6,3);
+    // Pick points
+    c.fillStyle=pc[0];
+    c.beginPath();c.moveTo(x+1,y+4);c.lineTo(x-1,y+1);c.lineTo(x+3,y+4);c.fill();
+    c.beginPath();c.moveTo(x+s-1,y+4);c.lineTo(x+s+1,y+1);c.lineTo(x+s-3,y+4);c.fill();
+  }else if(name==='cement'){
+    c.fillStyle=TEAMS[p.team].dark||'#800';c.fillRect(x+1,y+1,s-2,s-2);
+    c.fillStyle=TEAMS[p.team].color;c.fillRect(x+2,y+2,s-4,s-4);
+    c.fillStyle='rgba(255,255,255,0.12)';c.fillRect(x+2,y+2,s-4,s/3);
+    c.strokeStyle='rgba(0,0,0,0.2)';c.lineWidth=1;c.strokeRect(x+2,y+2,s-4,s-4);
+  }else if(name==='stone'){
+    c.fillStyle='#666';c.fillRect(x+1,y+1,s-2,s-2);
+    c.fillStyle='#8b8b8b';c.fillRect(x+2,y+2,s-4,s-4);
+    c.fillStyle='#777';c.fillRect(x+4,y+6,4,3);c.fillRect(x+10,y+10,5,3);
+    c.fillStyle='rgba(255,255,255,0.1)';c.fillRect(x+2,y+2,s-4,s/3);
+  }else if(name==='obsidian'){
+    c.fillStyle='#0d0828';c.fillRect(x+1,y+1,s-2,s-2);
+    c.fillStyle='#2d1b69';c.fillRect(x+2,y+2,s-4,s-4);
+    c.fillStyle='#6030b0';c.fillRect(x+5,y+5,2,2);c.fillRect(x+12,y+10,2,2);
+  }else if(name==='bow'){
+    c.strokeStyle='#5a3510';c.lineWidth=3;c.beginPath();c.arc(cx,cy,s/2-3,-PI/2.8,PI/2.8);c.stroke();
+    c.strokeStyle='#8b5a1f';c.lineWidth=1.5;c.beginPath();c.arc(cx,cy,s/2-3,-PI/2.8,PI/2.8);c.stroke();
+    c.strokeStyle='#ccc';c.lineWidth=1;c.beginPath();c.moveTo(cx,y+4);c.lineTo(cx,y+s-4);c.stroke();
+  }else if(name==='arrow'){
+    c.strokeStyle='#a08050';c.lineWidth=2;c.beginPath();c.moveTo(x+4,y+s-4);c.lineTo(x+s-4,y+4);c.stroke();
+    c.fillStyle='#888';c.beginPath();c.moveTo(x+s-3,y+3);c.lineTo(x+s-8,y+3);c.lineTo(x+s-3,y+8);c.fill();
+    c.fillStyle='#c33';c.fillRect(x+3,y+s-6,3,4);
+  }else if(name==='apple'){
+    c.fillStyle='#cc9b20';c.beginPath();c.arc(cx,cy+1,s/2-4,0,PI*2);c.fill();
+    c.fillStyle='#e8c547';c.beginPath();c.arc(cx-1,cy,s/2-5,0,PI*2);c.fill();
+    c.fillStyle='rgba(255,255,255,0.2)';c.beginPath();c.arc(cx-3,cy-2,3,0,PI*2);c.fill();
+    c.fillStyle='#5a3510';c.fillRect(cx-1,y+3,2,4);
+    c.fillStyle='#3a7a20';c.beginPath();c.ellipse(cx+2,y+4,3,2,0.3,0,PI*2);c.fill();
+  }else if(name==='tnt'){
+    c.fillStyle='#8b1a1a';c.fillRect(x+1,y+2,s-2,s-3);
+    c.fillStyle='#cc2222';c.fillRect(x+2,y+3,s-4,s-5);
+    c.fillStyle='#eee';c.font='bold '+(s<28?'7':'9')+'px monospace';c.fillText('TNT',x+3,cy+3);
+    c.fillStyle='#444';c.fillRect(cx-1,y,2,4);
+    c.fillStyle='#ff4';c.beginPath();c.arc(cx,y,2,0,PI*2);c.fill();
+  }else if(name==='pearl'){
+    c.fillStyle='#7030b0';c.beginPath();c.arc(cx,cy,s/2-3,0,PI*2);c.fill();
+    c.fillStyle='#a055ff';c.beginPath();c.arc(cx-1,cy-1,s/2-5,0,PI*2);c.fill();
+    c.fillStyle='rgba(255,255,255,0.3)';c.beginPath();c.arc(cx-3,cy-3,3,0,PI*2);c.fill();
+  }
 }
 
 // ============================== POWER-UPS ==============================
