@@ -518,7 +518,8 @@ function openChallenge(stationType){
   document.getElementById('chReward').textContent='Reward: +'+reward.amount+' '+reward.label;
   document.getElementById('chFeedback').textContent='';
   document.getElementById('chTimer').style.width='100%';
-  const inp=document.getElementById('chInput');inp.value='';inp.focus();
+  const inp=document.getElementById('chInput');inp.value='';
+  setTimeout(()=>{inp.value='';inp.focus()},120);
   sfx.chOpen();
 }
 
@@ -813,6 +814,7 @@ function aiMoveTo(ai,tx,tz,dt,bridge){
 // ============================== INPUT ==============================
 const keys={};const mouse={left:false,right:false};let ptrLock=false;
 addEventListener('keydown',e=>{
+  if(G.challenge&&G.challenge.active&&document.activeElement===document.getElementById('chInput'))return;
   keys[e.code]=true;
   if(G.state==='MENU'&&e.code==='KeyH')toggleHow();
   if(e.code==='Escape'){if(shopOpen)closeShop();if(G.challenge)closeChallenge()}
@@ -834,7 +836,10 @@ addEventListener('keydown',e=>{
   }
   if(e.code==='KeyQ')p.eatApple();
 });
-addEventListener('keyup',e=>{keys[e.code]=false});
+addEventListener('keyup',e=>{
+  if(G.challenge&&G.challenge.active&&document.activeElement===document.getElementById('chInput'))return;
+  keys[e.code]=false;
+});
 glC.addEventListener('mousedown',e=>{
   resumeA();
   if(!ptrLock&&G.state==='PLAYING'&&!shopOpen&&!G.challenge){glC.requestPointerLock();return}
