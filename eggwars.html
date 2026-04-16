@@ -1167,24 +1167,32 @@ function renderHUD(){
   // Bow
   if(p.bowDraw>0){hx.strokeStyle='#ff0';hx.lineWidth=3;hx.beginPath();hx.arc(cx,cy,20,-PI/2,-PI/2+PI*2*Math.min(1,p.bowDraw/CFG.BOW_DRAW));hx.stroke()}
 
-  // Challenge hint near stations
+  // Proximity hints — collect all nearby, stack vertically
   if(p.alive&&G.state==='PLAYING'&&!shopOpen&&!G.challenge&&ptrLock){
+    const hints=[];
+    const seen=new Set();
     for(let dy=-1;dy<=1;dy++)for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
       const bx=Math.floor(p.x)+dx,by=Math.floor(p.y)+dy,bz=Math.floor(p.z)+dz;
-      if(isStation(wG(bx,by,bz))&&Math.hypot(p.x-bx-.5,p.z-bz-.5)<3){
-        hx.fillStyle='rgba(0,0,0,0.6)';hx.fillRect(cx-100,cy+40,200,28);
-        hx.fillStyle='#ffd700';hx.font='14px monospace';hx.textAlign='center';
-        const label=wG(bx,by,bz)===B.STATION_IRON?'Power Core':wG(bx,by,bz)===B.STATION_GOLD?'Energy Forge':'Crystal Nexus';
-        hx.fillText('Press E — '+label,cx,cy+58);
-        hx.textAlign='left';break;
+      const bl=wG(bx,by,bz);
+      if(isStation(bl)&&Math.hypot(p.x-bx-.5,p.z-bz-.5)<3){
+        const label=bl===B.STATION_IRON?'Power Core':bl===B.STATION_GOLD?'Energy Forge':'Crystal Nexus';
+        if(!seen.has(label)){seen.add(label);hints.push('Press E — '+label)}
       }
     }
-    // Shop hint
     const s=G.shops[p.team];
-    if(s&&Math.hypot(p.x-s.x-.5,p.z-s.z-.5)<3&&Math.abs(p.y-s.y)<2){
-      hx.fillStyle='rgba(0,0,0,0.6)';hx.fillRect(cx-60,cy+40,120,28);
-      hx.fillStyle='#ffd700';hx.font='14px monospace';hx.textAlign='center';
-      hx.fillText('Press E — Shop',cx,cy+58);hx.textAlign='left';
+    if(s&&Math.hypot(p.x-s.x-.5,p.z-s.z-.5)<3&&Math.abs(p.y-s.y)<2)hints.push('Press E — Shop');
+    if(hints.length>0){
+      const hintH=22,pad=4,totalH=hints.length*(hintH+pad);
+      let hy=cy+36;
+      hx.font='14px monospace';hx.textAlign='center';
+      for(const h of hints){
+        const w=Math.max(180,hx.measureText(h).width+24);
+        hx.fillStyle='rgba(0,0,0,0.7)';hx.fillRect(cx-w/2,hy,w,hintH);
+        hx.strokeStyle='rgba(255,215,0,0.4)';hx.lineWidth=1;hx.strokeRect(cx-w/2,hy,w,hintH);
+        hx.fillStyle='#ffd700';hx.fillText(h,cx,hy+16);
+        hy+=hintH+pad;
+      }
+      hx.textAlign='left';
     }
   }
 
