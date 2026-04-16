@@ -47,12 +47,19 @@ h2{color:#ffd700;margin:8px}
 <div id="menu" class="ov">
 <div class="pix title-egg">EGG WARS</div>
 <div class="pix title-jware">J_ware</div>
-<div class="pix title-sub">LEARN &bull; BUILD &bull; DEFEND</div>
-<div class="pix title-ver">v0.1.0</div>
-<button class="btn pix" data-mode="math">Math Challenge</button>
-<button class="btn pix" data-mode="spell">Spelling Challenge</button>
-<button class="btn pix" data-mode="mixed">Mixed Mode</button>
+<div class="pix title-sub">POWER UP &bull; BUILD &bull; DEFEND</div>
+<div class="pix title-ver">v0.2.0</div>
+<div style="margin:8px 0"><input id="nameInput" class="pix" type="text" placeholder="ENTER YOUR NAME" maxlength="12" autocomplete="off" spellcheck="false" style="width:260px;font-size:20px;padding:10px 16px;text-align:center;background:#1a1a3a;color:#ffd700;border:3px solid #ffd700;letter-spacing:3px;text-transform:uppercase;outline:none"></div>
+<button class="btn pix" id="playBtn" style="font-size:22px;min-width:320px;padding:16px 32px;background:#2e7d32;border-color:#4caf50">PLAY</button>
+<button class="btn pix" id="boardBtn">Leaderboard</button>
 <button class="btn pix" id="howBtn">How To Play</button>
+</div>
+<div id="lboard" class="ov hid">
+<div class="how" style="min-width:420px">
+<h2 class="pix" style="letter-spacing:4px">LEADERBOARD</h2>
+<div id="lbBody" style="margin:12px 0"></div>
+<button class="btn pix" id="closeLB">BACK</button>
+</div>
 </div>
 <div class="credits-tiny pix">a sunnyday technologies project</div>
 
@@ -480,9 +487,9 @@ function hideLetters(word,tier){
 }
 
 const REWARDS={
-  [B.STATION_IRON]:{kind:'iron',amount:3,tier:0,label:'Iron'},
-  [B.STATION_GOLD]:{kind:'gold',amount:2,tier:1,label:'Gold'},
-  [B.STATION_DIAMOND]:{kind:'diamond',amount:1,tier:2,label:'Diamond'},
+  [B.STATION_IRON]:{kind:'iron',amount:3,tier:0,label:'Iron',station:'POWER CORE'},
+  [B.STATION_GOLD]:{kind:'gold',amount:2,tier:1,label:'Gold',station:'ENERGY FORGE'},
+  [B.STATION_DIAMOND]:{kind:'diamond',amount:1,tier:2,label:'Diamond',station:'CRYSTAL NEXUS'},
 };
 
 function openChallenge(stationType){
@@ -500,7 +507,8 @@ function openChallenge(stationType){
   document.exitPointerLock();
   const box=document.getElementById('challengeBox');
   box.style.display='block';
-  document.getElementById('chType').textContent=prob.type==='math'?'MATH CHALLENGE':'SPELLING CHALLENGE';
+  const stName=reward.station||'CHALLENGE';
+  document.getElementById('chType').textContent=stName+(prob.type==='math'?' — Number Blast':' — Word Forge');
   if(prob.type==='spell'){
     document.getElementById('chPrompt').textContent='Spell: '+prob.hint;
     setTimeout(()=>{if(G.challenge&&G.challenge.active)document.getElementById('chPrompt').textContent=prob.prompt},2000);
@@ -1014,8 +1022,8 @@ function renderHUD(){
       if(isStation(wG(bx,by,bz))&&Math.hypot(p.x-bx-.5,p.z-bz-.5)<3){
         hx.fillStyle='rgba(0,0,0,0.6)';hx.fillRect(cx-100,cy+40,200,28);
         hx.fillStyle='#ffd700';hx.font='14px monospace';hx.textAlign='center';
-        const label=wG(bx,by,bz)===B.STATION_IRON?'Iron':wG(bx,by,bz)===B.STATION_GOLD?'Gold':'Diamond';
-        hx.fillText('Press E — '+label+' Challenge',cx,cy+58);
+        const label=wG(bx,by,bz)===B.STATION_IRON?'Power Core':wG(bx,by,bz)===B.STATION_GOLD?'Energy Forge':'Crystal Nexus';
+        hx.fillText('Press E — '+label,cx,cy+58);
         hx.textAlign='left';break;
       }
     }
@@ -1128,10 +1136,12 @@ function checkWin(){
   const rem=Object.keys(alive);
   if(rem.length<=1)endGame(rem[0]||null);
 }
+function fmtTime(s){const m=Math.floor(s/60),r=Math.floor(s%60);return m+':'+(r<10?'0':'')+r}
 function endGame(winner){
   G.state='ENDED';document.exitPointerLock();
   const el=document.getElementById('endEl');el.classList.remove('hid');
   const isWin=winner===G.local.team;
+  saveScore(G.playerName,G.score.total,fmtTime(G.time),isWin);
   let h='<h1 style="font-size:56px">'+(isWin?'VICTORY!':'DEFEAT')+'</h1>';
   if(winner)h+='<h2 style="color:'+TEAMS[winner].color+'">'+winner.toUpperCase()+' WINS</h2>';
   h+='<div style="max-width:500px;text-align:left;background:rgba(20,20,40,0.9);padding:20px;border:2px solid #ffd700;margin:12px">';
@@ -1153,26 +1163,63 @@ function frame(t){
 }
 
 // ============================== INIT ==============================
-function startGame(mode){
-  G.mode=mode;G.state='COUNTDOWN';G.countdown=5;
+function startGame(mode,playerName){
+  G.mode=mode;G.state='COUNTDOWN';G.countdown=5;G.playerName=playerName||'PLAYER';
   G.players=[];G.projectiles=[];G.particles=[];G.tnts=[];
   G.chat=[];G.time=0;G.winner=null;G.challenge=null;
   G.score={math:0,spell:0,total:0};
   eggHitCD={};cam.pitch=0;cam.yaw=0;
   genWorld();
   const py=CFG.PLAT_Y+1;
-  const h=new Player('red',TEAMS.red.ix+5+.5,py,TEAMS.red.iz+5+1.5,{name:'YOU'});
+  const h=new Player('red',TEAMS.red.ix+5+.5,py,TEAMS.red.iz+5+1.5,{name:G.playerName});
   G.local=h;G.players.push(h);
   const ai=new Player('blue',TEAMS.blue.ix+5+.5,py,TEAMS.blue.iz+5+1.5,{ai:true,name:'AI'});
   G.players.push(ai);
   document.getElementById('menu').classList.add('hid');
   document.getElementById('howto').classList.add('hid');
   document.getElementById('lockMsg').classList.remove('hid');
-  pushChat(mode.toUpperCase()+' mode — solve challenges to earn resources!');
+  pushChat('Welcome '+G.playerName+'! Solve challenges to power up!');
   resumeA();
 }
+// ============================== LEADERBOARD ==============================
+function loadScores(){try{return JSON.parse(localStorage.getItem('jware_eggwars_lb'))||[]}catch(e){return[]}}
+function saveScore(name,score,time,won){
+  const lb=loadScores();
+  lb.push({name:name||'ANON',score,time,won,date:new Date().toLocaleDateString()});
+  lb.sort((a,b)=>b.score-a.score);
+  if(lb.length>20)lb.length=20;
+  localStorage.setItem('jware_eggwars_lb',JSON.stringify(lb));
+}
+function showLeaderboard(){
+  const lb=loadScores();
+  const el=document.getElementById('lbBody');
+  if(lb.length===0){el.innerHTML='<p style="color:#888">No scores yet — go play!</p>';
+  }else{
+    let h='<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    h+='<tr style="color:#ffd700"><td>#</td><td>NAME</td><td>SCORE</td><td>TIME</td><td>RESULT</td></tr>';
+    for(let i=0;i<Math.min(10,lb.length);i++){
+      const s=lb[i];
+      const bg=i===0?'rgba(255,215,0,0.15)':i===1?'rgba(192,192,192,0.1)':i===2?'rgba(205,127,50,0.1)':'transparent';
+      h+='<tr style="background:'+bg+'"><td style="color:#ffd700">'+(i+1)+'</td><td>'+s.name+'</td><td style="color:#5cb85c">'+s.score+'</td><td>'+s.time+'</td><td>'+(s.won?'WIN':'—')+'</td></tr>';
+    }
+    h+='</table>';
+    el.innerHTML=h;
+  }
+  document.getElementById('lboard').classList.remove('hid');
+}
+
 function toggleHow(){document.getElementById('howto').classList.toggle('hid')}
-document.querySelectorAll('#menu .btn').forEach(b=>{b.addEventListener('click',()=>{if(!AX)initAudio();resumeA();if(b.dataset.mode)startGame(b.dataset.mode)})});
+document.getElementById('playBtn').addEventListener('click',()=>{
+  if(!AX)initAudio();resumeA();
+  const name=(document.getElementById('nameInput').value||'').trim().toUpperCase()||'PLAYER';
+  startGame('mixed',name);
+});
+document.getElementById('nameInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){document.getElementById('playBtn').click();e.preventDefault()}
+  e.stopPropagation();
+});
+document.getElementById('boardBtn').addEventListener('click',showLeaderboard);
+document.getElementById('closeLB').addEventListener('click',()=>document.getElementById('lboard').classList.add('hid'));
 document.getElementById('howBtn').addEventListener('click',toggleHow);
 document.getElementById('closeHow').addEventListener('click',toggleHow);
 requestAnimationFrame(frame);
