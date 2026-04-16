@@ -930,21 +930,27 @@ function aiMoveTo(ai,tx,tz,dt,bridge){
   const dx=tx-ai.x,dz=tz-ai.z,d=Math.hypot(dx,dz);if(d<.3)return;
   const nx=dx/d,nz=dz/d;ai.yaw=Math.atan2(-nx,-nz);
   const spd=ai.speed();
-  const fx=Math.floor(ai.x+nx*.8),fy=Math.floor(ai.y),fz=Math.floor(ai.z+nz*.8);
-  // Check if next step is over void
-  const groundAhead=isSolid(wG(fx,fy-1,fz));
-  if(!groundAhead){
+  const fy=Math.floor(ai.y);
+  // Check 1.5 tiles ahead for void
+  const fx1=Math.floor(ai.x+nx*1.2),fz1=Math.floor(ai.z+nz*1.2);
+  const fx2=Math.floor(ai.x+nx*.5),fz2=Math.floor(ai.z+nz*.5);
+  const groundFar=isSolid(wG(fx1,fy-1,fz1));
+  const groundNear=isSolid(wG(fx2,fy-1,fz2));
+  if(!groundFar||!groundNear){
     if(bridge&&ai.aiBridgeCD<=0){
+      const bx=groundNear?fx1:fx2,bz=groundNear?fz1:fz2;
       const ws=ai.findSlot('cement');
-      if(ws>=0){wS(fx,fy-1,fz,TEAMS[ai.team].cement);ai.inv[ws].n--;if(ai.inv[ws].n<=0)ai.inv[ws]=null;ai.aiBridgeCD=.3;return}
+      if(ws>=0){wS(bx,fy-1,bz,TEAMS[ai.team].cement);ai.inv[ws].n--;if(ai.inv[ws].n<=0)ai.inv[ws]=null;ai.aiBridgeCD=.3;return}
     }
-    // No cement and void ahead — DON'T walk off! Go back to farming instead.
-    if(!groundAhead){ai.aiState='farm';return}
+    ai.aiState='farm';return;
   }
-  if(isSolid(wG(fx,fy,fz))&&ai.onGround)ai.vy=CFG.JUMP_VEL;
-  if(isSolid(wG(fx,fy+1,fz))){const fh={x:fx,y:fy+1,z:fz,block:wG(fx,fy+1,fz)};ai.doBreak(fh,dt)}
+  if(isSolid(wG(fx2,fy,fz2))&&ai.onGround)ai.vy=CFG.JUMP_VEL;
+  if(isSolid(wG(fx2,fy+1,fz2))){const fh={x:fx2,y:fy+1,z:fz2,block:wG(fx2,fy+1,fz2)};ai.doBreak(fh,dt)}
+  // Move, then verify ground still exists under new position
   const ox=ai.x;ai.x+=nx*spd*dt;if(aabbH(ai.x,ai.y,ai.z))ai.x=ox;
   const oz=ai.z;ai.z+=nz*spd*dt;if(aabbH(ai.x,ai.y,ai.z))ai.z=oz;
+  // Safety: if we stepped over void, revert
+  if(!isSolid(wG(Math.floor(ai.x),fy-1,Math.floor(ai.z)))){ai.x=ox;ai.z=oz}
 }
 
 // ============================== INPUT ==============================
