@@ -958,7 +958,14 @@ addEventListener('keydown',e=>{
   const p=G.local;if(!p)return;
   const n=parseInt(e.key);if(n>=1&&n<=9)p.slot=n-1;
   if(e.code==='KeyE'){
-    // Find ALL nearby interactables, pick closest
+    // Look-based interaction: what you're aiming at gets priority
+    const dir=cFwd(cam.pitch,cam.yaw);
+    const hit=rcast(p.x,p.y+1.5,p.z,dir[0],dir[1],dir[2],CFG.REACH);
+    if(hit){
+      if(isStation(hit.block)){openChallenge(hit.block);return}
+      if(hit.block===B.SHOP){shopOpen?closeShop():openShop(p);return}
+    }
+    // Fallback: proximity (closest) if not looking at anything interactable
     const nearby=[];
     for(let dy=-1;dy<=1;dy++)for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
       const bx=Math.floor(p.x)+dx,by=Math.floor(p.y)+dy,bz=Math.floor(p.z)+dz;
