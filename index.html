@@ -952,17 +952,21 @@ addEventListener('keydown',e=>{
   const p=G.local;if(!p)return;
   const n=parseInt(e.key);if(n>=1&&n<=9)p.slot=n-1;
   if(e.code==='KeyE'){
-    // Check for station or shop nearby
-    const dir=cFwd(cam.pitch,cam.yaw);
-    const hit=rcast(p.x,p.y+1.5,p.z,dir[0],dir[1],dir[2],CFG.REACH);
-    if(hit&&isStation(hit.block)){openChallenge(hit.block);return}
-    // Also check proximity to stations regardless of look direction
+    // Find ALL nearby interactables, pick closest
+    const nearby=[];
     for(let dy=-1;dy<=1;dy++)for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
       const bx=Math.floor(p.x)+dx,by=Math.floor(p.y)+dy,bz=Math.floor(p.z)+dz;
-      if(isStation(wG(bx,by,bz))&&Math.hypot(p.x-bx-.5,p.z-bz-.5)<2.5){openChallenge(wG(bx,by,bz));return}
+      const bl=wG(bx,by,bz);
+      const d=Math.hypot(p.x-bx-.5,p.z-bz-.5);
+      if(isStation(bl)&&d<3)nearby.push({type:'station',block:bl,dist:d});
+      if(bl===B.SHOP&&d<3)nearby.push({type:'shop',dist:d});
     }
-    const s=G.shops[p.team];
-    if(s&&Math.hypot(p.x-s.x-.5,p.z-s.z-.5)<3&&Math.abs(p.y-s.y)<2){shopOpen?closeShop():openShop(p)}
+    nearby.sort((a,b)=>a.dist-b.dist);
+    if(nearby.length>0){
+      const c=nearby[0];
+      if(c.type==='station'){openChallenge(c.block);return}
+      if(c.type==='shop'){shopOpen?closeShop():openShop(p);return}
+    }
   }
   if(e.code==='KeyQ')p.eatApple();
 });
@@ -1167,20 +1171,24 @@ function renderHUD(){
   // Bow
   if(p.bowDraw>0){hx.strokeStyle='#ff0';hx.lineWidth=3;hx.beginPath();hx.arc(cx,cy,20,-PI/2,-PI/2+PI*2*Math.min(1,p.bowDraw/CFG.BOW_DRAW));hx.stroke()}
 
-  // Proximity hints — collect all nearby, stack vertically
+  // Proximity hints — collect all nearby, sort by distance, stack vertically
   if(p.alive&&G.state==='PLAYING'&&!shopOpen&&!G.challenge&&ptrLock){
-    const hints=[];
+    const hintList=[];
     const seen=new Set();
     for(let dy=-1;dy<=1;dy++)for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
       const bx=Math.floor(p.x)+dx,by=Math.floor(p.y)+dy,bz=Math.floor(p.z)+dz;
       const bl=wG(bx,by,bz);
-      if(isStation(bl)&&Math.hypot(p.x-bx-.5,p.z-bz-.5)<3){
+      const d=Math.hypot(p.x-bx-.5,p.z-bz-.5);
+      if(isStation(bl)&&d<3){
         const label=bl===B.STATION_IRON?'Power Core':bl===B.STATION_GOLD?'Energy Forge':'Crystal Nexus';
-        if(!seen.has(label)){seen.add(label);hints.push('Press E — '+label)}
+        if(!seen.has(label)){seen.add(label);hintList.push({text:'Press E — '+label,dist:d})}
       }
     }
     const s=G.shops[p.team];
-    if(s&&Math.hypot(p.x-s.x-.5,p.z-s.z-.5)<3&&Math.abs(p.y-s.y)<2)hints.push('Press E — Shop');
+    if(s&&Math.hypot(p.x-s.x-.5,p.z-s.z-.5)<3&&Math.abs(p.y-s.y)<2)
+      hintList.push({text:'Press E — Shop',dist:Math.hypot(p.x-s.x-.5,p.z-s.z-.5)});
+    hintList.sort((a,b)=>a.dist-b.dist);
+    const hints=hintList.map(h=>h.text);
     if(hints.length>0){
       const hintH=22,pad=4,totalH=hints.length*(hintH+pad);
       let hy=cy+36;
