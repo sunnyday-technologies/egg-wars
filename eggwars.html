@@ -1362,7 +1362,7 @@ function renderHUD(){
   if(!p.alive&&p.respawnT>0){hx.fillStyle='rgba(0,0,0,0.6)';hx.fillRect(0,H/2-40,W,80);hx.fillStyle='#fff';hx.font='28px monospace';hx.textAlign='center';hx.fillText('RESPAWN IN '+Math.ceil(p.respawnT),W/2,H/2+10);hx.textAlign='left'}
   else if(!p.alive&&p.respawnT<0){hx.fillStyle='rgba(80,0,0,0.7)';hx.fillRect(0,H/2-40,W,80);hx.fillStyle='#fff';hx.font='28px monospace';hx.textAlign='center';hx.fillText('ELIMINATED',W/2,H/2+10);hx.textAlign='left'}
   // Countdown
-  if(G.state==='COUNTDOWN'){hx.fillStyle='rgba(0,0,0,0.5)';hx.fillRect(0,0,W,H);hx.fillStyle='#ffd700';hx.font='bold 96px monospace';hx.textAlign='center';hx.fillText(Math.ceil(G.countdown),W/2,H/2+30);hx.textAlign='left'}
+  if(G.state==='COUNTDOWN'&&G.countdown>0){const cn=Math.ceil(G.countdown);hx.fillStyle='rgba(0,0,0,0.5)';hx.fillRect(0,0,W,H);hx.fillStyle='#ffd700';hx.font='bold 96px monospace';hx.textAlign='center';hx.fillText(cn>0?cn:'GO!',W/2,H/2+30);hx.textAlign='left'}
   // Player labels
   if(G.state==='PLAYING'){
     const view=vMat(p.x,p.y+1.5,p.z,cam.pitch,cam.yaw);
@@ -1525,7 +1525,7 @@ function updatePowerups(dt){
 function pushChat(msg){G.chat.push({text:msg,t:G.time});if(G.chat.length>6)G.chat.shift()}
 
 function update(dt){
-  if(G.state==='COUNTDOWN'){G.countdown-=dt;if(G.countdown<=0){G.state='PLAYING';G.time=0;pushChat('GO! Solve challenges to earn resources!');if(!isMobile)glC.requestPointerLock();else{ptrLock=true;document.getElementById('lockMsg').classList.add('hid')}}return}
+  if(G.state==='COUNTDOWN'){G.countdown-=dt;if(G.countdown<=0){G.state='PLAYING';G.time=0;G.countdown=-1;pushChat('GO!');if(!isMobile)glC.requestPointerLock();else{ptrLock=true;document.getElementById('lockMsg').classList.add('hid')}}return}
   if(G.state==='ENDED'){updateParts(dt);return}
   if(G.state!=='PLAYING')return;
   G.time+=dt;
@@ -1788,6 +1788,39 @@ function initTouch(){
     const evt=new KeyboardEvent('keydown',{code:'KeyE',key:'e',bubbles:true});
     window.dispatchEvent(evt);
   },{passive:false});
+  // Gyroscope look controls
+  let gyroBase=null,gyroEnabled=false;
+  function enableGyro(){
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
+      // iOS 13+ requires permission
+      DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')startGyro()}).catch(()=>{});
+    }else{startGyro()}
+  }
+  function startGyro(){
+    gyroEnabled=true;
+    window.addEventListener('deviceorientation',e=>{
+      if(!e.alpha&&!e.beta)return;
+      if(!gyroBase)gyroBase={a:e.alpha,b:e.beta,g:e.gamma};
+      const da=(e.alpha-gyroBase.a)*PI/180;
+      const db=(e.beta-gyroBase.b)*PI/180;
+      cam.yaw=-da*0.8;
+      cam.pitch=Math.max(-PI/2+.01,Math.min(PI/2-.01,-db*0.6));
+    });
+    pushChat('Gyro look enabled! Tilt to look around.');
+  }
+  // Add gyro toggle button
+  const gyroBtn=document.createElement('button');
+  gyroBtn.className='touch-btn';
+  gyroBtn.textContent='🔄';
+  gyroBtn.style.cssText='left:160px;bottom:180px;width:50px;height:50px;font-size:20px;position:fixed;z-index:5;pointer-events:auto';
+  gyroBtn.title='Toggle Gyro Look';
+  gyroBtn.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    if(gyroEnabled){gyroEnabled=false;gyroBase=null;pushChat('Gyro disabled')}
+    else enableGyro();
+  },{passive:false});
+  document.getElementById('touchUI').appendChild(gyroBtn);
+
   // Draw joystick loop
   setInterval(drawJoy,50);
 }
