@@ -19,6 +19,9 @@ h1{font-size:52px;margin:10px;color:#ffd700;text-shadow:4px 4px 0 #000,-2px -2px
 .credits-tiny{position:fixed;bottom:8px;right:12px;font-size:9px;color:#444;letter-spacing:1px;z-index:21}
 .grade-btn{background:#333!important;border-color:#666!important}
 .grade-btn.act{background:#b8860b!important;border-color:#ffd700!important;color:#fff!important}
+.skin-btn{background:#222!important;border-color:#555!important}
+.skin-btn.act{background:#2e4a1e!important;border-color:#4caf50!important;box-shadow:0 0 8px #4caf50!important}
+.streak-badge{color:#ff6b35;font-size:13px;letter-spacing:2px;margin:2px 0}
 h2{color:#ffd700;margin:8px}
 .btn{background:#2d4a8e;color:#fff;border:3px solid #ffd700;padding:12px 24px;font-size:16px;font-family:inherit;cursor:pointer;margin:5px;min-width:280px;text-transform:uppercase;letter-spacing:3px;text-shadow:1px 1px 0 #000;box-shadow:3px 3px 0 #000}
 .btn:hover{background:#4a6fbe;box-shadow:2px 2px 0 #000;transform:translate(1px,1px)}
@@ -50,9 +53,22 @@ h2{color:#ffd700;margin:8px}
 <div class="pix title-egg">EGG WARS</div>
 <div class="pix title-jware">J_ware</div>
 <div class="pix title-sub">POWER UP &bull; BUILD &bull; DEFEND</div>
-<div class="pix title-ver">v0.2.0</div>
+<div class="pix title-ver">v0.3.0</div>
+<div id="streakDisp" class="pix streak-badge"></div>
 <div style="margin:8px 0"><input id="nameInput" class="pix" type="text" placeholder="YOUR NAME" maxlength="12" autocomplete="off" spellcheck="false" style="width:240px;font-size:20px;padding:10px 16px;text-align:center;background:#1a1a3a;color:#ffd700;border:3px solid #ffd700;letter-spacing:3px;text-transform:uppercase;outline:none"></div>
-<div style="margin:6px 0;display:flex;gap:6px;justify-content:center;flex-wrap:wrap" id="gradeRow">
+<div style="margin:4px 0"><span class="pix" style="font-size:11px;color:#aaa;letter-spacing:2px">CHOOSE YOUR SKIN</span></div>
+<div style="margin:4px 0 8px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap" id="skinRow">
+<button class="btn pix skin-btn act" data-skin="default" style="min-width:44px;padding:8px;font-size:16px" title="Default">👤</button>
+<button class="btn pix skin-btn" data-skin="tiger" style="min-width:44px;padding:8px;font-size:16px" title="Tiger">🐯</button>
+<button class="btn pix skin-btn" data-skin="axolotl" style="min-width:44px;padding:8px;font-size:16px" title="Axolotl">🦎</button>
+<button class="btn pix skin-btn" data-skin="panda" style="min-width:44px;padding:8px;font-size:16px" title="Panda">🐼</button>
+<button class="btn pix skin-btn" data-skin="bee" style="min-width:44px;padding:8px;font-size:16px" title="Bee">🐝</button>
+<button class="btn pix skin-btn" data-skin="frog" style="min-width:44px;padding:8px;font-size:16px" title="Frog">🐸</button>
+<button class="btn pix skin-btn" data-skin="dragon" style="min-width:44px;padding:8px;font-size:16px" title="Dragon">🐉</button>
+<button class="btn pix skin-btn" data-skin="robot" style="min-width:44px;padding:8px;font-size:16px" title="Robot">🤖</button>
+</div>
+<div id="skinLabel" class="pix" style="font-size:12px;color:#ffd700;margin-bottom:6px;letter-spacing:3px">DEFAULT</div>
+<div style="margin:4px 0;display:flex;gap:6px;justify-content:center;flex-wrap:wrap" id="gradeRow">
 <button class="btn pix grade-btn" data-grade="K" style="min-width:60px;padding:10px 14px;font-size:14px">K</button>
 <button class="btn pix grade-btn act" data-grade="1" style="min-width:60px;padding:10px 14px;font-size:14px">1st</button>
 <button class="btn pix grade-btn" data-grade="2" style="min-width:60px;padding:10px 14px;font-size:14px">2nd</button>
@@ -195,6 +211,9 @@ const sfx={
   tick(){_t(1200,.03,'square',.12)},
   tntB(){_n(.5,.4,400);_t(80,.4,'square',.25,30)},
   buy(){_t(660,.06,'triangle',.18);setTimeout(()=>_t(990,.08,'triangle',.18),60)},
+  victory(){_t(523,.15,'sine',.3);setTimeout(()=>_t(659,.15,'sine',.3),120);setTimeout(()=>_t(784,.15,'sine',.3),240);setTimeout(()=>_t(1047,.3,'sine',.3),360)},
+  powerup(){_t(600,.08,'sine',.25);_t(900,.08,'sine',.2);setTimeout(()=>_t(1200,.12,'sine',.25),80)},
+  streak(){_t(440,.1,'triangle',.2);setTimeout(()=>_t(880,.15,'triangle',.25),100);setTimeout(()=>_t(1320,.2,'triangle',.3),200)},
   correct(){_t(523,.1,'sine',.25);setTimeout(()=>_t(659,.1,'sine',.25),100);setTimeout(()=>_t(784,.15,'sine',.25),200)},
   wrong(){_t(200,.3,'sawtooth',.2,100)},
   chOpen(){_t(440,.08,'triangle',.2);_t(660,.08,'triangle',.15)},
@@ -274,7 +293,22 @@ const G={state:'MENU',mode:'mixed',world:null,chunks:[],players:[],local:null,
   projectiles:[],particles:[],tnts:[],eggs:{},shops:{},
   chat:[],time:0,countdown:0,winner:null,
   challenge:null,score:{math:0,spell:0,total:0},
+  streak:0,powerups:[],skin:'default',jerrySkin:'tiger',
 };
+
+// ============================== SKINS ==============================
+const SKINS={
+  default:{name:'DEFAULT',head:[.96,.77,.54],body:null,arms:null,legs:[.15,.15,.2],icon:'👤'},
+  tiger:{name:'TIGER',head:[1,.6,.1],body:[1,.5,0],arms:[.2,.1,0],legs:[.2,.1,0],icon:'🐯'},
+  axolotl:{name:'AXOLOTL',head:[1,.7,.8],body:[1,.5,.6],arms:[.9,.4,.5],legs:[.8,.3,.4],icon:'🦎'},
+  panda:{name:'PANDA',head:[1,1,1],body:[.95,.95,.95],arms:[.1,.1,.1],legs:[.1,.1,.1],icon:'🐼'},
+  bee:{name:'BEE',head:[1,.9,.2],body:[1,.85,.1],arms:[.15,.12,0],legs:[.15,.12,0],icon:'🐝'},
+  frog:{name:'FROG',head:[.5,1,.4],body:[.3,.8,.3],arms:[.2,.6,.2],legs:[.15,.5,.15],icon:'🐸'},
+  dragon:{name:'DRAGON',head:[.7,.3,.9],body:[.5,.15,.7],arms:[.4,.1,.6],legs:[.3,.08,.5],icon:'🐉'},
+  robot:{name:'ROBOT',head:[.7,.8,.9],body:[.5,.55,.6],arms:[.35,.4,.45],legs:[.3,.32,.35],icon:'🤖'},
+};
+const SKIN_ORDER=['default','tiger','axolotl','panda','bee','frog','dragon','robot'];
+const JERRY_SKINS=['tiger','frog','bee','robot','panda'];
 const cam={pitch:0,yaw:0};
 
 function wI(x,y,z){return x+z*CFG.MAP_X+y*CFG.MAP_X*CFG.MAP_Z}
@@ -1001,15 +1035,25 @@ function addBx(v,x,y,z,w,h,d,r,g,b){
 function buildEV(){
   const v=[],p=G.local;
   for(const pl of G.players){
-    if(pl===p||!pl.alive)continue;const tc=TEAMS[pl.team],wk=Math.sin(pl.walkDist*8)*.15;
-    addBx(v,pl.x-.2,pl.y+1.4,pl.z-.2,.4,.4,.4,.96,.77,.54);
-    addBx(v,pl.x-.25,pl.y+.65,pl.z-.15,.5,.75,.3,tc.rgb[0],tc.rgb[1],tc.rgb[2]);
-    addBx(v,pl.x-.42,pl.y+.65+wk,pl.z-.1,.15,.7,.2,tc.dark[0],tc.dark[1],tc.dark[2]);
-    addBx(v,pl.x+.27,pl.y+.65-wk,pl.z-.1,.15,.7,.2,tc.dark[0],tc.dark[1],tc.dark[2]);
-    addBx(v,pl.x-.2,pl.y-wk*.3,pl.z-.1,.18,.65,.2,.15,.15,.2);
-    addBx(v,pl.x+.02,pl.y+wk*.3,pl.z-.1,.18,.65,.2,.15,.15,.2);
+    if(pl===p||!pl.alive)continue;
+    const tc=TEAMS[pl.team],wk=Math.sin(pl.walkDist*8)*.15;
+    const sk=SKINS[pl.skin||'default']||SKINS.default;
+    const hd=sk.head,bd=sk.body||tc.rgb,ar=sk.arms||tc.dark,lg=sk.legs;
+    addBx(v,pl.x-.2,pl.y+1.4,pl.z-.2,.4,.4,.4,hd[0],hd[1],hd[2]);
+    addBx(v,pl.x-.25,pl.y+.65,pl.z-.15,.5,.75,.3,bd[0],bd[1],bd[2]);
+    addBx(v,pl.x-.42,pl.y+.65+wk,pl.z-.1,.15,.7,.2,ar[0],ar[1],ar[2]);
+    addBx(v,pl.x+.27,pl.y+.65-wk,pl.z-.1,.15,.7,.2,ar[0],ar[1],ar[2]);
+    addBx(v,pl.x-.2,pl.y-wk*.3,pl.z-.1,.18,.65,.2,lg[0],lg[1],lg[2]);
+    addBx(v,pl.x+.02,pl.y+wk*.3,pl.z-.1,.18,.65,.2,lg[0],lg[1],lg[2]);
   }
   for(const t of G.tnts){const fl=Math.floor(t.fuse*4)%2===0;const c=fl?[1,1,1]:[.8,.15,.15];addBx(v,t.x-.4,t.y-.4,t.z-.4,.8,.8,.8,c[0],c[1],c[2])}
+  // Power-ups: spinning, bobbing cubes
+  for(const pu of G.powerups){
+    const bob=Math.sin(G.time*3+pu.x)*.2;
+    const c=pu.pup.color;
+    addBx(v,pu.x-.25,pu.y+bob-.25,pu.z-.25,.5,.5,.5,c[0],c[1],c[2]);
+    addBx(v,pu.x-.15,pu.y+bob+.25,pu.z-.15,.3,.15,.3,c[0]*.7,c[1]*.7,c[2]*.7);
+  }
   return v;
 }
 function buildPV(cx,cy,cz){
@@ -1042,10 +1086,14 @@ function renderHUD(){
   const swOff=p.swingT>0?Math.sin(p.swingT*12)*30:0;
   hx.save();
   hx.translate(handX+swOff,handY-swOff*0.5);
-  // Arm
-  hx.fillStyle='#d4a66a';
+  // Arm (uses skin colors)
+  const sk=SKINS[G.skin||'default']||SKINS.default;
+  const armC=sk.arms||[.75,.6,.38];
+  const armH='rgb('+Math.floor(armC[0]*255)+','+Math.floor(armC[1]*255)+','+Math.floor(armC[2]*255)+')';
+  const armD='rgb('+Math.floor(armC[0]*200)+','+Math.floor(armC[1]*200)+','+Math.floor(armC[2]*200)+')';
+  hx.fillStyle=armH;
   hx.fillRect(0,40,28,80);
-  hx.fillStyle='#c49858';
+  hx.fillStyle=armD;
   hx.fillRect(4,44,20,72);
   // Held item
   if(sel&&sel.item==='sword'){
@@ -1169,17 +1217,53 @@ function drawItemH(c,x,y,s,name,p){
   else if(name==='tnt'){c.fillStyle='#c33';c.fillRect(x+2,y+4,s-4,s-6);c.fillStyle='#fff';c.font='8px monospace';c.fillText('TNT',x+4,y+s/2+3)}
 }
 
+// ============================== POWER-UPS ==============================
+const PUPS=[
+  {name:'SPEED BOOST',color:[0,.9,1],fn:p=>{p.effect('speed',15);pushChat('⚡ SPEED BOOST!')}},
+  {name:'EXTRA HEARTS',color:[1,.3,.3],fn:p=>{p.hp=Math.min(CFG.MAX_HP,p.hp+8);pushChat('❤ +4 HEARTS!')}},
+  {name:'IRON RUSH',color:[.8,.8,.85],fn:p=>{p.res.iron=Math.min(64,p.res.iron+10);pushChat('🔩 +10 IRON!')}},
+  {name:'GOLD RUSH',color:[1,.85,.2],fn:p=>{p.res.gold=Math.min(16,p.res.gold+5);pushChat('✨ +5 GOLD!')}},
+  {name:'DIAMOND DROP',color:[.3,.9,.95],fn:p=>{p.res.diamond=Math.min(8,p.res.diamond+2);pushChat('💎 +2 DIAMOND!')}},
+  {name:'SUPER WOOL',color:[.9,.5,.9],fn:p=>{p.addItem('wool',32);pushChat('🧱 +32 WOOL!')}},
+];
+let pupTimer=0;
+function updatePowerups(dt){
+  pupTimer-=dt;
+  if(pupTimer<=0){
+    pupTimer=25+Math.random()*20;
+    // Spawn a random power-up on a mid-platform or island edge
+    const spots=[[20,CFG.PLAT_Y+1,20],[20,CFG.PLAT_Y+1,28],[28,CFG.PLAT_Y+1,20],[28,CFG.PLAT_Y+1,28]];
+    // Also near player's island
+    const td=TEAMS.red;
+    spots.push([td.ix+5+3,CFG.PLAT_Y+1,td.iz+5-4]);
+    const sp=spots[Math.floor(Math.random()*spots.length)];
+    const pup=PUPS[Math.floor(Math.random()*PUPS.length)];
+    G.powerups.push({x:sp[0]+.5,y:sp[1]+.5,z:sp[2]+.5,pup,life:20});
+  }
+  // Check pickup + decay
+  for(let i=G.powerups.length-1;i>=0;i--){
+    const pu=G.powerups[i];pu.life-=dt;
+    if(pu.life<=0){G.powerups.splice(i,1);continue}
+    const p=G.local;
+    if(p&&p.alive&&Math.hypot(p.x-pu.x,p.y+.9-pu.y,p.z-pu.z)<1.5){
+      pu.pup.fn(p);sfx.powerup();spawnP(pu.x,pu.y,pu.z,pu.pup.color,20);
+      G.powerups.splice(i,1);
+    }
+  }
+}
+
 // ============================== GAME LOOP ==============================
 function pushChat(msg){G.chat.push({text:msg,t:G.time});if(G.chat.length>6)G.chat.shift()}
 
 function update(dt){
   if(G.state==='COUNTDOWN'){G.countdown-=dt;if(G.countdown<=0){G.state='PLAYING';G.time=0;pushChat('GO! Solve challenges to earn resources!');glC.requestPointerLock()}return}
+  if(G.state==='ENDED'){updateParts(dt);return}
   if(G.state!=='PLAYING')return;
   G.time+=dt;
   processInput(dt);
   for(const p of G.players){if(p.isAI)aiUpdate(p,dt);p.update(dt)}
-  updateProj(dt);updateTNT(dt);updateParts(dt);
-  // Refresh station chunks for glow (only known island positions)
+  updateProj(dt);updateTNT(dt);updateParts(dt);updatePowerups(dt);
+  // Refresh station chunks for glow
   if(Math.floor(G.time*3)!==Math.floor((G.time-dt)*3)){
     for(const t of TEAM_ORDER){const td=TEAMS[t];markD(td.ix+2,CFG.PLAT_Y+1,td.iz+2);markD(td.ix+8,CFG.PLAT_Y+1,td.iz+8)}
   }
@@ -1193,22 +1277,59 @@ function checkWin(){
   if(rem.length<=1)endGame(rem[0]||null);
 }
 function fmtTime(s){const m=Math.floor(s/60),r=Math.floor(s%60);return m+':'+(r<10?'0':'')+r}
+function loadStreak(){try{return parseInt(localStorage.getItem('jware_eggwars_streak'))||0}catch(e){return 0}}
+function saveStreak(n){try{localStorage.setItem('jware_eggwars_streak',String(n))}catch(e){}}
 function endGame(winner){
   G.state='ENDED';document.exitPointerLock();
   const el=document.getElementById('endEl');el.classList.remove('hid');
   const isWin=winner===G.local.team;
   saveScore(G.playerName,G.score.total,fmtTime(G.time),isWin);
-  let h='<h1 style="font-size:56px">'+(isWin?'VICTORY!':'DEFEAT')+'</h1>';
-  if(winner)h+='<h2 style="color:'+TEAMS[winner].color+'">'+winner.toUpperCase()+' WINS</h2>';
+  // Streak
+  let streak=loadStreak();
+  if(isWin){streak++;sfx.victory();sfx.streak()}else{streak=0}
+  saveStreak(streak);G.streak=streak;
+  // Confetti on win
+  if(isWin){
+    const colors=[[1,.2,.2],[.2,1,.3],[.3,.5,1],[1,.9,.1],[1,.5,0],[.9,.2,.9],[0,1,1]];
+    for(let i=0;i<80;i++){
+      const c=colors[Math.floor(Math.random()*colors.length)];
+      const p=G.local;
+      G.particles.push({x:p.x+(Math.random()-0.5)*6,y:p.y+3+Math.random()*4,z:p.z+(Math.random()-0.5)*6,
+        vx:(Math.random()-.5)*8,vy:Math.random()*6+2,vz:(Math.random()-.5)*8,
+        life:2+Math.random()*2,col:c});
+    }
+  }
+  // Streak messages
+  const streakMsg=streak>=5?'🔥 UNSTOPPABLE! '+streak+' WINS!':
+    streak>=3?'🔥 ON FIRE! '+streak+' in a row!':
+    streak===2?'⚡ 2 wins in a row!':
+    streak===1?'Nice win!':'';
+  let h='<h1 class="pix" style="font-size:56px;'+(isWin?'color:#ffd700':'color:#e04545')+'">'+(isWin?'VICTORY!':'DEFEAT')+'</h1>';
+  if(isWin&&streakMsg)h+='<div class="pix" style="color:#ff6b35;font-size:16px;letter-spacing:2px;margin:4px">'+streakMsg+'</div>';
+  if(!isWin)h+='<div class="pix" style="color:#aaa;font-size:14px;margin:4px">JERRY: '+['haha get rekt','better luck next time kid','i told u i was a genius','gg ez'][Math.floor(Math.random()*4)]+'</div>';
+  const skinIcon=SKINS[G.skin]?SKINS[G.skin].icon:'👤';
   h+='<div style="max-width:500px;text-align:left;background:rgba(20,20,40,0.9);padding:20px;border:2px solid #ffd700;margin:12px">';
-  h+='<p style="color:#5cb85c;font-size:18px">Challenges Solved: '+G.score.total+'</p>';
-  h+='<p style="color:#aaa">Math: '+G.score.math+' | Spelling: '+G.score.spell+'</p>';
+  h+='<p style="color:#5cb85c;font-size:18px">'+skinIcon+' Challenges Solved: '+G.score.total+'</p>';
+  h+='<p style="color:#aaa">Math: '+G.score.math+' | Spelling: '+G.score.spell+' | Time: '+fmtTime(G.time)+'</p>';
+  if(streak>1)h+='<p style="color:#ff6b35">Win Streak: '+streak+'</p>';
   h+='<hr style="border-color:#444;margin:8px 0">';
-  for(const p of G.players)h+='<div style="color:'+TEAMS[p.team].color+'">'+p.name+' — Kills: '+p.kills+'</div>';
+  for(const pl of G.players){
+    const si=SKINS[pl.skin]?SKINS[pl.skin].icon:'👤';
+    h+='<div style="color:'+TEAMS[pl.team].color+'">'+si+' '+pl.name+' — Kills: '+pl.kills+'</div>';
+  }
   h+='</div><div style="color:#ff6b35;font-size:18px;letter-spacing:4px;margin:12px" class="pix">J_ware</div>';
-  h+='<button class="btn pix" id="againBtn">PLAY AGAIN</button>';
+  h+='<button class="btn pix" id="againBtn" style="font-size:20px;background:#2e7d32;border-color:#4caf50">PLAY AGAIN</button>';
   el.innerHTML=h;
-  document.getElementById('againBtn').onclick=()=>{el.classList.add('hid');document.getElementById('menu').classList.remove('hid');G.state='MENU'};
+  document.getElementById('againBtn').onclick=()=>{
+    el.classList.add('hid');document.getElementById('menu').classList.remove('hid');G.state='MENU';
+    updateMenuStreak();
+  };
+}
+function updateMenuStreak(){
+  const s=loadStreak();
+  const el=document.getElementById('streakDisp');
+  if(s>=2)el.textContent='🔥 STREAK: '+s;
+  else el.textContent='';
 }
 
 let lastT=0;
@@ -1222,6 +1343,9 @@ function frame(t){
 function startGame(mode,playerName){
   G.mode=mode;G.state='COUNTDOWN';G.countdown=5;G.playerName=playerName||'PLAYER';
   G.grade=parseInt(document.querySelector('.grade-btn.act').dataset.grade)||1;
+  G.skin=document.querySelector('.skin-btn.act').dataset.skin||'default';
+  G.jerrySkin=JERRY_SKINS[Math.floor(Math.random()*JERRY_SKINS.length)];
+  G.streak=loadStreak();G.powerups=[];pupTimer=15+Math.random()*10;
   G.players=[];G.projectiles=[];G.particles=[];G.tnts=[];
   G.chat=[];G.time=0;G.winner=null;G.challenge=null;
   G.score={math:0,spell:0,total:0};
@@ -1229,8 +1353,11 @@ function startGame(mode,playerName){
   genWorld();
   const py=CFG.PLAT_Y+1;
   const h=new Player('red',TEAMS.red.ix+5+.5,py,TEAMS.red.iz+5+1.5,{name:G.playerName});
+  h.skin=G.skin;
   G.local=h;G.players.push(h);
-  const ai=new Player('blue',TEAMS.blue.ix+5+.5,py,TEAMS.blue.iz+5+1.5,{ai:true,name:'JERRY'});
+  const jerryIcon=SKINS[G.jerrySkin]?SKINS[G.jerrySkin].icon:'🐯';
+  const ai=new Player('blue',TEAMS.blue.ix+5+.5,py,TEAMS.blue.iz+5+1.5,{ai:true,name:'JERRY '+jerryIcon});
+  ai.skin=G.jerrySkin;
   G.players.push(ai);
   document.getElementById('menu').classList.add('hid');
   document.getElementById('howto').classList.add('hid');
@@ -1279,6 +1406,13 @@ document.querySelectorAll('.grade-btn').forEach(b=>b.addEventListener('click',()
   document.querySelectorAll('.grade-btn').forEach(x=>x.classList.remove('act'));
   b.classList.add('act');
 }));
+document.querySelectorAll('.skin-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.skin-btn').forEach(x=>x.classList.remove('act'));
+  b.classList.add('act');
+  const sk=SKINS[b.dataset.skin];
+  document.getElementById('skinLabel').textContent=sk?sk.name:'DEFAULT';
+}));
+updateMenuStreak();
 document.getElementById('boardBtn').addEventListener('click',showLeaderboard);
 document.getElementById('closeLB').addEventListener('click',()=>document.getElementById('lboard').classList.add('hid'));
 document.getElementById('howBtn').addEventListener('click',toggleHow);
