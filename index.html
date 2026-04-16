@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Egg Wars 3D — by J_ware | Sunnyday Technologies</title>
+<title>EGG WARS — J_ware</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#000;overflow:hidden;font-family:'Courier New',monospace;color:#fff;cursor:none}
@@ -11,9 +11,16 @@ body{background:#000;overflow:hidden;font-family:'Courier New',monospace;color:#
 .ov{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.88);z-index:20;cursor:default}
 .hid{display:none!important}
 h1{font-size:52px;margin:10px;color:#ffd700;text-shadow:4px 4px 0 #000,-2px -2px 0 #8b4513;letter-spacing:4px}
+.pix{font-family:monospace;image-rendering:pixelated;-webkit-font-smoothing:none;-moz-osx-font-smoothing:grayscale}
+.title-egg{font-size:80px;letter-spacing:12px;color:#ffd700;text-shadow:3px 3px 0 #d4a017,6px 6px 0 #b8860b,9px 9px 0 #8b6914,12px 12px 0 #000,14px 14px 0 rgba(0,0,0,0.4);-webkit-text-stroke:2px #6b4c00;paint-order:stroke fill;margin:0;line-height:1.1}
+.title-jware{font-size:36px;letter-spacing:8px;color:#ff6b35;text-shadow:2px 2px 0 #cc4400,4px 4px 0 #993300,6px 6px 0 #000;-webkit-text-stroke:1px #662200;paint-order:stroke fill;margin:8px 0 2px}
+.title-sub{font-size:11px;color:#666;letter-spacing:3px;margin:4px 0 18px}
+.title-ver{font-size:10px;color:#555;letter-spacing:2px;margin:0 0 12px}
+.credits-tiny{position:fixed;bottom:8px;right:12px;font-size:9px;color:#444;letter-spacing:1px;z-index:21}
 h2{color:#ffd700;margin:8px}
-.btn{background:#2d4a8e;color:#fff;border:3px solid #ffd700;padding:14px 28px;font-size:18px;font-family:inherit;cursor:pointer;margin:6px;min-width:300px;text-transform:uppercase;letter-spacing:2px}
-.btn:hover{background:#4a6fbe}
+.btn{background:#2d4a8e;color:#fff;border:3px solid #ffd700;padding:12px 24px;font-size:16px;font-family:inherit;cursor:pointer;margin:5px;min-width:280px;text-transform:uppercase;letter-spacing:3px;text-shadow:1px 1px 0 #000;box-shadow:3px 3px 0 #000}
+.btn:hover{background:#4a6fbe;box-shadow:2px 2px 0 #000;transform:translate(1px,1px)}
+.btn:active{box-shadow:0 0 0 #000;transform:translate(3px,3px)}
 .how{max-width:660px;line-height:1.8;font-size:14px;padding:24px;background:rgba(20,20,40,0.95);border:2px solid #ffd700}
 #challengeBox{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;background:rgba(10,10,30,0.97);border:3px solid #ffd700;padding:24px;z-index:30;text-align:center;pointer-events:auto;cursor:default;display:none}
 #challengeBox h3{color:#ffd700;font-size:22px;margin-bottom:12px}
@@ -38,15 +45,16 @@ h2{color:#ffd700;margin:8px}
 <canvas id="hud"></canvas>
 
 <div id="menu" class="ov">
-<h1>EGG WARS</h1>
-<p style="color:#aaa;margin-bottom:2px;font-size:16px">Learn &amp; Defend!</p>
-<p style="color:#ffd700;margin-bottom:4px;font-size:13px">Created by J_ware &bull; Sunnyday Technologies</p>
-<p style="color:#666;margin-bottom:16px;font-size:11px">v0.1.0</p>
-<button class="btn" data-mode="math">Math Challenge Mode</button>
-<button class="btn" data-mode="spell">Spelling Challenge Mode</button>
-<button class="btn" data-mode="mixed">Mixed (Math + Spelling)</button>
-<button class="btn" id="howBtn">How To Play</button>
+<div class="pix title-egg">EGG WARS</div>
+<div class="pix title-jware">J_ware</div>
+<div class="pix title-sub">LEARN &bull; BUILD &bull; DEFEND</div>
+<div class="pix title-ver">v0.1.0</div>
+<button class="btn pix" data-mode="math">Math Challenge</button>
+<button class="btn pix" data-mode="spell">Spelling Challenge</button>
+<button class="btn pix" data-mode="mixed">Mixed Mode</button>
+<button class="btn pix" id="howBtn">How To Play</button>
 </div>
+<div class="credits-tiny pix">a sunnyday technologies project</div>
 
 <div id="howto" class="ov hid">
 <div class="how">
@@ -1131,7 +1139,8 @@ function endGame(winner){
   h+='<p style="color:#aaa">Math: '+G.score.math+' | Spelling: '+G.score.spell+'</p>';
   h+='<hr style="border-color:#444;margin:8px 0">';
   for(const p of G.players)h+='<div style="color:'+TEAMS[p.team].color+'">'+p.name+' — Kills: '+p.kills+'</div>';
-  h+='</div><button class="btn" id="againBtn">PLAY AGAIN</button>';
+  h+='</div><div style="color:#ff6b35;font-size:18px;letter-spacing:4px;margin:12px" class="pix">J_ware</div>';
+  h+='<button class="btn pix" id="againBtn">PLAY AGAIN</button>';
   el.innerHTML=h;
   document.getElementById('againBtn').onclick=()=>{el.classList.add('hid');document.getElementById('menu').classList.remove('hid');G.state='MENU'};
 }
