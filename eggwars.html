@@ -191,8 +191,8 @@ const BC={};
 BC[B.GRASS]={top:[.49,.73,.29],side:[.42,.31,.19],bot:[.42,.31,.19]};
 BC[B.DIRT]={top:[.42,.31,.19],side:[.40,.29,.17],bot:[.38,.27,.15]};
 BC[B.STONE]={top:[.55,.55,.55],side:[.50,.50,.50],bot:[.45,.45,.45]};
-BC[B.CEMENT_R]={top:[.85,.35,.33],side:[.72,.28,.26],bot:[.58,.22,.20]};
-BC[B.CEMENT_B]={top:[.35,.52,.82],side:[.26,.42,.70],bot:[.20,.32,.56]};
+BC[B.CEMENT_R]={top:[.72,.68,.65],side:[.62,.58,.55],bot:[.52,.48,.46]};
+BC[B.CEMENT_B]={top:[.65,.68,.72],side:[.55,.58,.62],bot:[.46,.48,.52]};
 BC[B.WOOD]={top:[.55,.38,.16],side:[.45,.30,.12],bot:[.40,.26,.10]};
 BC[B.OBSIDIAN]={top:[.22,.14,.45],side:[.18,.11,.41],bot:[.15,.09,.35]};
 BC[B.EGG_R]={top:[1,.65,.65],side:[.92,.35,.35],bot:[.7,.22,.22]};
@@ -894,7 +894,8 @@ function aiUpdate(ai,dt){
     pushChat(taunts[Math.floor(Math.random()*taunts.length)]);
   }
   if(threat)aiChase(ai,threat,dt);
-  else if(agg===0||ai.swordTier<1)aiFarm(ai,dt);
+  else if(agg===0||ai.swordTier<1||ai.aiCD>0)aiFarm(ai,dt);
+  else if(ai.findSlot('cement')<0)aiFarm(ai,dt); // need cement before attacking
   else aiAttack(ai,dt);
 }
 function aiBuy(ai){
@@ -922,35 +923,33 @@ function aiAttack(ai,dt){
   for(const p of G.players){if(p===ai||!p.alive||p.team===ai.team)continue;
     const d=Math.hypot(p.x-ai.x,p.z-ai.z);
     if(d<5){aiChase(ai,p,dt);return}}
-  aiMoveTo(ai,tgt.x+.5,tgt.z+.5,dt,true);
+  const moved=aiMoveTo(ai,tgt.x+.5,tgt.z+.5,dt,true);
+  if(!moved){ai.aiState='farm';ai.aiCD=4+Math.random()*4;return}
   const d=Math.hypot(tgt.x+.5-ai.x,tgt.z+.5-ai.z);
   if(d<CFG.MELEE_RANGE){ai.yaw=Math.atan2(-(tgt.x+.5-ai.x),-(tgt.z+.5-ai.z));ai.doMelee(cFwd(0,ai.yaw))}
 }
 function aiMoveTo(ai,tx,tz,dt,bridge){
-  const dx=tx-ai.x,dz=tz-ai.z,d=Math.hypot(dx,dz);if(d<.3)return;
+  const dx=tx-ai.x,dz=tz-ai.z,d=Math.hypot(dx,dz);if(d<.3)return true;
   const nx=dx/d,nz=dz/d;ai.yaw=Math.atan2(-nx,-nz);
   const spd=ai.speed();
   const fy=Math.floor(ai.y);
-  // Check 1.5 tiles ahead for void
-  const fx1=Math.floor(ai.x+nx*1.2),fz1=Math.floor(ai.z+nz*1.2);
-  const fx2=Math.floor(ai.x+nx*.5),fz2=Math.floor(ai.z+nz*.5);
-  const groundFar=isSolid(wG(fx1,fy-1,fz1));
-  const groundNear=isSolid(wG(fx2,fy-1,fz2));
-  if(!groundFar||!groundNear){
+  const ox=ai.x,oz=ai.z;
+  const fx=Math.floor(ai.x+nx*.7),fz=Math.floor(ai.z+nz*.7);
+  if(isSolid(wG(fx,fy,fz))&&ai.onGround)ai.vy=CFG.JUMP_VEL;
+  if(isSolid(wG(fx,fy+1,fz))){const fh={x:fx,y:fy+1,z:fz,block:wG(fx,fy+1,fz)};ai.doBreak(fh,dt)}
+  ai.x+=nx*spd*dt;if(aabbH(ai.x,ai.y,ai.z))ai.x=ox;
+  ai.z+=nz*spd*dt;if(aabbH(ai.x,ai.y,ai.z))ai.z=oz;
+  // Check if new position is over void
+  const gx=Math.floor(ai.x),gz=Math.floor(ai.z);
+  if(!isSolid(wG(gx,fy-1,gz))){
     if(bridge&&ai.aiBridgeCD<=0){
-      const bx=groundNear?fx1:fx2,bz=groundNear?fz1:fz2;
       const ws=ai.findSlot('cement');
-      if(ws>=0){wS(bx,fy-1,bz,TEAMS[ai.team].cement);ai.inv[ws].n--;if(ai.inv[ws].n<=0)ai.inv[ws]=null;ai.aiBridgeCD=.3;return}
+      if(ws>=0){wS(gx,fy-1,gz,TEAMS[ai.team].cement);ai.inv[ws].n--;if(ai.inv[ws].n<=0)ai.inv[ws]=null;ai.aiBridgeCD=.3;return true}
     }
-    ai.aiState='farm';return;
+    ai.x=ox;ai.z=oz;
+    return false; // couldn't move — let caller decide what to do
   }
-  if(isSolid(wG(fx2,fy,fz2))&&ai.onGround)ai.vy=CFG.JUMP_VEL;
-  if(isSolid(wG(fx2,fy+1,fz2))){const fh={x:fx2,y:fy+1,z:fz2,block:wG(fx2,fy+1,fz2)};ai.doBreak(fh,dt)}
-  // Move, then verify ground still exists under new position
-  const ox=ai.x;ai.x+=nx*spd*dt;if(aabbH(ai.x,ai.y,ai.z))ai.x=ox;
-  const oz=ai.z;ai.z+=nz*spd*dt;if(aabbH(ai.x,ai.y,ai.z))ai.z=oz;
-  // Safety: if we stepped over void, revert
-  if(!isSolid(wG(Math.floor(ai.x),fy-1,Math.floor(ai.z)))){ai.x=ox;ai.z=oz}
+  return true;
 }
 
 // ============================== INPUT ==============================
@@ -1232,8 +1231,8 @@ function renderHUD(){
 
   }else if(sel&&(sel.item==='cement'||sel.item==='stone'||sel.item==='obsidian')){
     // Block in hand
-    const bc=sel.item==='cement'?TEAMS[p.team].color:sel.item==='stone'?'#8b8b8b':'#2d1b69';
-    const bd=sel.item==='cement'?TEAMS[p.team].dark||'#800':sel.item==='stone'?'#666':'#1a0f40';
+    const bc=sel.item==='cement'?'#908a86':sel.item==='stone'?'#8b8b8b':'#2d1b69';
+    const bd=sel.item==='cement'?'#6a6460':sel.item==='stone'?'#666':'#1a0f40';
     // 3D block (isometric-ish)
     hx.fillStyle=bd;hx.fillRect(-2,-10,34,34);
     hx.fillStyle=bc;hx.fillRect(0,-8,30,30);
@@ -1433,9 +1432,10 @@ function drawItemH(c,x,y,s,name,p){
     c.beginPath();c.moveTo(x+1,y+4);c.lineTo(x-1,y+1);c.lineTo(x+3,y+4);c.fill();
     c.beginPath();c.moveTo(x+s-1,y+4);c.lineTo(x+s+1,y+1);c.lineTo(x+s-3,y+4);c.fill();
   }else if(name==='cement'){
-    c.fillStyle=TEAMS[p.team].dark||'#800';c.fillRect(x+1,y+1,s-2,s-2);
-    c.fillStyle=TEAMS[p.team].color;c.fillRect(x+2,y+2,s-4,s-4);
-    c.fillStyle='rgba(255,255,255,0.12)';c.fillRect(x+2,y+2,s-4,s/3);
+    c.fillStyle='#787470';c.fillRect(x+1,y+1,s-2,s-2);
+    c.fillStyle='#908a86';c.fillRect(x+2,y+2,s-4,s-4);
+    c.fillStyle='#9e9894';c.fillRect(x+2,y+2,s-4,s/3);
+    c.fillStyle='rgba(0,0,0,0.15)';c.fillRect(x+5,y+8,3,2);c.fillRect(x+11,y+12,4,2);
     c.strokeStyle='rgba(0,0,0,0.2)';c.lineWidth=1;c.strokeRect(x+2,y+2,s-4,s-4);
   }else if(name==='stone'){
     c.fillStyle='#666';c.fillRect(x+1,y+1,s-2,s-2);
