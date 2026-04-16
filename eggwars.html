@@ -156,7 +156,7 @@ h2{color:#ffd700;margin:8px}
 
 <div id="shopEl"></div>
 <div id="endEl" class="ov hid"></div>
-<div id="lockMsg" class="ov hid" style="background:rgba(0,0,0,0.6);cursor:pointer" onclick="if(G&&G.state==='PLAYING')document.getElementById('gl').requestPointerLock()">
+<div id="lockMsg" class="ov hid" style="background:rgba(0,0,0,0.6);cursor:pointer" onclick="if(G&&G.state==='PLAYING'){if(typeof isMobile!=='undefined'&&isMobile){ptrLock=true;this.classList.add('hid')}else{document.getElementById('gl').requestPointerLock()}}">
 <p style="font-size:24px">Click to play</p>
 <p style="font-size:14px;color:#aaa">ESC to pause</p>
 </div>
@@ -675,7 +675,7 @@ function submitChallenge(){
 function closeChallenge(){
   G.challenge=null;
   document.getElementById('challengeBox').style.display='none';
-  if(G.state==='PLAYING')glC.requestPointerLock();
+  if(G.state==='PLAYING'&&!isMobile)glC.requestPointerLock();else if(isMobile)ptrLock=true;
 }
 
 // Wire challenge input
@@ -856,7 +856,7 @@ function costStr(c){return Object.entries(c).map(([k,v])=>v+' '+k).join(', ')}
 
 let shopOpen=false,shopTab='Blocks',shopPlayer=null;
 function openShop(p){shopOpen=true;shopPlayer=p;document.exitPointerLock();document.getElementById('shopEl').style.display='block';renderShop()}
-function closeShop(){shopOpen=false;document.getElementById('shopEl').style.display='none';if(G.state==='PLAYING')glC.requestPointerLock()}
+function closeShop(){shopOpen=false;document.getElementById('shopEl').style.display='none';if(G.state==='PLAYING'&&!isMobile)glC.requestPointerLock()}
 function renderShop(){
   const el=document.getElementById('shopEl'),p=shopPlayer;if(!p)return;
   const tabs=['Blocks','Weapons','Armor','Utilities'];
@@ -1007,7 +1007,7 @@ addEventListener('keyup',e=>{
 });
 glC.addEventListener('mousedown',e=>{
   resumeA();
-  if(!ptrLock&&G.state==='PLAYING'&&!shopOpen&&!G.challenge){glC.requestPointerLock();return}
+  if(!ptrLock&&G.state==='PLAYING'&&!shopOpen&&!G.challenge){if(!isMobile)glC.requestPointerLock();return}
   if(e.button===0)mouse.left=true;if(e.button===2)mouse.right=true;
 });
 glC.addEventListener('mouseup',e=>{
@@ -1525,7 +1525,7 @@ function updatePowerups(dt){
 function pushChat(msg){G.chat.push({text:msg,t:G.time});if(G.chat.length>6)G.chat.shift()}
 
 function update(dt){
-  if(G.state==='COUNTDOWN'){G.countdown-=dt;if(G.countdown<=0){G.state='PLAYING';G.time=0;pushChat('GO! Solve challenges to earn resources!');glC.requestPointerLock()}return}
+  if(G.state==='COUNTDOWN'){G.countdown-=dt;if(G.countdown<=0){G.state='PLAYING';G.time=0;pushChat('GO! Solve challenges to earn resources!');if(!isMobile)glC.requestPointerLock();else{ptrLock=true;document.getElementById('lockMsg').classList.add('hid')}}return}
   if(G.state==='ENDED'){updateParts(dt);return}
   if(G.state!=='PLAYING')return;
   G.time+=dt;
