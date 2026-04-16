@@ -17,6 +17,8 @@ h1{font-size:52px;margin:10px;color:#ffd700;text-shadow:4px 4px 0 #000,-2px -2px
 .title-sub{font-size:11px;color:#666;letter-spacing:3px;margin:4px 0 18px}
 .title-ver{font-size:10px;color:#555;letter-spacing:2px;margin:0 0 12px}
 .credits-tiny{position:fixed;bottom:8px;right:12px;font-size:9px;color:#444;letter-spacing:1px;z-index:21}
+.grade-btn{background:#333!important;border-color:#666!important}
+.grade-btn.act{background:#b8860b!important;border-color:#ffd700!important;color:#fff!important}
 h2{color:#ffd700;margin:8px}
 .btn{background:#2d4a8e;color:#fff;border:3px solid #ffd700;padding:12px 24px;font-size:16px;font-family:inherit;cursor:pointer;margin:5px;min-width:280px;text-transform:uppercase;letter-spacing:3px;text-shadow:1px 1px 0 #000;box-shadow:3px 3px 0 #000}
 .btn:hover{background:#4a6fbe;box-shadow:2px 2px 0 #000;transform:translate(1px,1px)}
@@ -49,7 +51,15 @@ h2{color:#ffd700;margin:8px}
 <div class="pix title-jware">J_ware</div>
 <div class="pix title-sub">POWER UP &bull; BUILD &bull; DEFEND</div>
 <div class="pix title-ver">v0.2.0</div>
-<div style="margin:8px 0"><input id="nameInput" class="pix" type="text" placeholder="ENTER YOUR NAME" maxlength="12" autocomplete="off" spellcheck="false" style="width:260px;font-size:20px;padding:10px 16px;text-align:center;background:#1a1a3a;color:#ffd700;border:3px solid #ffd700;letter-spacing:3px;text-transform:uppercase;outline:none"></div>
+<div style="margin:8px 0"><input id="nameInput" class="pix" type="text" placeholder="YOUR NAME" maxlength="12" autocomplete="off" spellcheck="false" style="width:240px;font-size:20px;padding:10px 16px;text-align:center;background:#1a1a3a;color:#ffd700;border:3px solid #ffd700;letter-spacing:3px;text-transform:uppercase;outline:none"></div>
+<div style="margin:6px 0;display:flex;gap:6px;justify-content:center;flex-wrap:wrap" id="gradeRow">
+<button class="btn pix grade-btn" data-grade="K" style="min-width:60px;padding:10px 14px;font-size:14px">K</button>
+<button class="btn pix grade-btn act" data-grade="1" style="min-width:60px;padding:10px 14px;font-size:14px">1st</button>
+<button class="btn pix grade-btn" data-grade="2" style="min-width:60px;padding:10px 14px;font-size:14px">2nd</button>
+<button class="btn pix grade-btn" data-grade="3" style="min-width:60px;padding:10px 14px;font-size:14px">3rd</button>
+<button class="btn pix grade-btn" data-grade="4" style="min-width:60px;padding:10px 14px;font-size:14px">4th</button>
+<button class="btn pix grade-btn" data-grade="5" style="min-width:60px;padding:10px 14px;font-size:14px">5th</button>
+</div>
 <button class="btn pix" id="playBtn" style="font-size:22px;min-width:320px;padding:16px 32px;background:#2e7d32;border-color:#4caf50">PLAY</button>
 <button class="btn pix" id="boardBtn">Leaderboard</button>
 <button class="btn pix" id="howBtn">How To Play</button>
@@ -116,9 +126,6 @@ const CFG={
   PW:0.6,PH:1.7,
   CHALLENGE_TIME_EASY:30,CHALLENGE_TIME_MED:25,CHALLENGE_TIME_HARD:20,
   AI_PASSIVE:60,AI_ACTIVE:120,
-  WORDS_EASY:['cat','dog','sun','hat','red','big','run','fun','map','cup','pen','bed','sit','top','box'],
-  WORDS_MED:['bridge','castle','shield','dragon','forest','island','knight','puzzle','escape','harbor'],
-  WORDS_HARD:['fortress','treasure','champion','defender','construct','obsidian','adventure','challenge','diamond','medieval'],
 };
 
 // Block types
@@ -443,47 +450,81 @@ function moveEnt(p,dt){
 }
 
 // ============================== CHALLENGE SYSTEM ==============================
+// Grade-scaled math problems
 function genMathProblem(tier){
+  const g=G.grade||1;
   let a,b,op,answer;
-  if(tier===0){
-    // Easy: single digit addition/subtraction for young kids
-    a=Math.floor(Math.random()*9)+1;b=Math.floor(Math.random()*9)+1;
+  if(g<=0){
+    // Kindergarten: counting, add up to 5
+    a=Math.floor(Math.random()*5)+1;b=Math.floor(Math.random()*4)+1;
+    if(tier===0){answer=a;return{prompt:'Count: '+('★'.repeat(a)),answer:String(a),type:'math'}}
+    op='+';answer=a+b;
+  }else if(g===1){
+    // 1st grade: add/subtract within 10
+    a=Math.floor(Math.random()*8)+1;b=Math.floor(Math.random()*Math.min(a,5))+1;
+    op=Math.random()<.6?'+':'-';
+    if(op==='+'){b=Math.floor(Math.random()*Math.max(1,10-a))+1;answer=a+b}
+    else{answer=a-b}
+  }else if(g===2){
+    // 2nd grade: add/subtract within 20, intro doubles
+    a=Math.floor(Math.random()*12)+2;b=Math.floor(Math.random()*10)+1;
     op=Math.random()<.6?'+':'-';
     if(op==='-'&&b>a){const t=a;a=b;b=t}
     answer=op==='+'?a+b:a-b;
-    return{prompt:a+' '+op+' '+b+' = ?',answer:String(answer),type:'math'};
-  }else if(tier===1){
-    // Medium: double digit add or simple multiply
-    a=Math.floor(Math.random()*8)+2;b=Math.floor(Math.random()*8)+2;
-    op=Math.random()<.5?'×':'+';
-    if(op==='×')answer=a*b;else{a=Math.floor(Math.random()*20)+5;b=Math.floor(Math.random()*20)+5;answer=a+b}
-    return{prompt:a+' '+op+' '+b+' = ?',answer:String(answer),type:'math'};
+  }else if(g===3){
+    // 3rd grade: multiply within 10, add within 100
+    if(tier>=1||Math.random()<.4){
+      a=Math.floor(Math.random()*8)+2;b=Math.floor(Math.random()*8)+2;
+      op='×';answer=a*b;
+    }else{
+      a=Math.floor(Math.random()*40)+10;b=Math.floor(Math.random()*30)+5;
+      op=Math.random()<.5?'+':'-';
+      if(op==='-'&&b>a){const t=a;a=b;b=t}
+      answer=op==='+'?a+b:a-b;
+    }
+  }else if(g===4){
+    // 4th grade: multiply bigger, simple division
+    if(tier>=2||Math.random()<.3){
+      answer=Math.floor(Math.random()*10)+2;b=Math.floor(Math.random()*8)+2;a=answer*b;
+      op='÷';
+    }else{
+      a=Math.floor(Math.random()*12)+2;b=Math.floor(Math.random()*12)+2;
+      op='×';answer=a*b;
+    }
   }else{
-    // Hard: bigger multiply or division
-    const ops=['×','÷'];op=ops[Math.floor(Math.random()*2)];
-    if(op==='×'){a=Math.floor(Math.random()*10)+2;b=Math.floor(Math.random()*10)+2;answer=a*b}
-    else{answer=Math.floor(Math.random()*10)+2;b=Math.floor(Math.random()*10)+2;a=answer*b}
-    return{prompt:a+' '+op+' '+b+' = ?',answer:String(answer),type:'math'};
+    // 5th grade: multi-digit multiply, division, mixed
+    const ops=['×','÷','+','-'];op=ops[Math.floor(Math.random()*4)];
+    if(op==='×'){a=Math.floor(Math.random()*15)+3;b=Math.floor(Math.random()*12)+3;answer=a*b}
+    else if(op==='÷'){answer=Math.floor(Math.random()*12)+2;b=Math.floor(Math.random()*12)+2;a=answer*b}
+    else{a=Math.floor(Math.random()*100)+20;b=Math.floor(Math.random()*80)+10;
+      if(op==='-'&&b>a){const t=a;a=b;b=t}answer=op==='+'?a+b:a-b}
   }
+  return{prompt:a+' '+op+' '+b+' = ?',answer:String(answer),type:'math'};
 }
+
+// Grade-scaled spelling
+const SPELL_BY_GRADE={
+  0:['at','in','it','on','up','go','me','we','am','an','is','no','do','so','to'],
+  1:['cat','dog','sun','hat','red','big','run','fun','map','cup','pen','bed','sit','top','box','log','net','pig','rug','van'],
+  2:['jump','ball','tree','fish','rain','play','book','moon','frog','bird','cake','star','home','blue','help','hand','milk','bear'],
+  3:['bridge','castle','dragon','forest','island','puzzle','garden','rocket','monkey','rabbit','basket','window','number','prince'],
+  4:['fortress','treasure','champion','defender','adventure','challenge','mountain','dinosaur','elephant','sandwich','homework','birthday'],
+  5:['construction','celebration','extraordinary','multiplication','encyclopedia','professional','communication','entertainment'],
+};
+
 function genSpellProblem(tier){
-  const lists=[CFG.WORDS_EASY,CFG.WORDS_MED,CFG.WORDS_HARD];
-  const list=lists[Math.min(2,tier)];
+  const g=G.grade||1;
+  const list=SPELL_BY_GRADE[Math.min(5,g)]||SPELL_BY_GRADE[1];
   const word=list[Math.floor(Math.random()*list.length)];
-  // Show the word briefly, then hide some letters
-  const hidden=hideLetters(word,tier);
-  return{prompt:hidden,answer:word.toLowerCase(),hint:word,type:'spell'};
-}
-function hideLetters(word,tier){
+  const hideCount=Math.min(word.length-1,1+Math.floor(tier*0.7)+Math.floor(g/3));
   const arr=word.split('');
-  const hideCount=Math.min(arr.length-1,1+tier);
   const indices=[];
   while(indices.length<hideCount){
     const i=Math.floor(Math.random()*arr.length);
     if(!indices.includes(i))indices.push(i);
   }
   for(const i of indices)arr[i]='_';
-  return arr.join(' ');
+  return{prompt:arr.join(' '),answer:word.toLowerCase(),hint:word,type:'spell'};
 }
 
 const REWARDS={
@@ -747,13 +788,15 @@ function renderShop(){
 function aiUpdate(ai,dt){
   if(!ai.alive)return;
   ai.aiCD-=dt;ai.aiBuyCD-=dt;ai.aiBridgeCD-=dt;ai.aiChCD-=dt;
-  // AI "solves" challenges by gaining resources periodically
+  // Jerry gets smarter at higher grades
   if(ai.aiChCD<=0){
-    ai.aiChCD=4+Math.random()*4;
-    // Simulate solving with some probability
-    if(Math.random()<.7){ai.res.iron=Math.min(64,ai.res.iron+3)}
-    if(Math.random()<.5){ai.res.gold=Math.min(16,ai.res.gold+2)}
-    if(Math.random()<.2){ai.res.diamond=Math.min(8,ai.res.diamond+1)}
+    const g=G.grade||1;
+    const spd=Math.max(3,10-g*1.5);
+    ai.aiChCD=spd+Math.random()*spd;
+    const skill=0.2+g*0.1;
+    if(Math.random()<skill){ai.res.iron=Math.min(64,ai.res.iron+1+Math.floor(g/2))}
+    if(Math.random()<skill*.5){ai.res.gold=Math.min(16,ai.res.gold+1)}
+    if(Math.random()<skill*.2){ai.res.diamond=Math.min(8,ai.res.diamond+1)}
   }
   if(ai.aiBuyCD<=0){ai.aiBuyCD=3;aiBuy(ai)}
   const agg=G.time<CFG.AI_PASSIVE?0:1;
@@ -762,6 +805,14 @@ function aiUpdate(ai,dt){
   if(myEgg&&myEgg.alive){
     for(const p of G.players){if(p===ai||!p.alive||p.team===ai.team)continue;
       if(Math.abs(p.x-myEgg.x)<8&&Math.abs(p.z-myEgg.z)<8){threat=p;break}}
+  }
+  // Jerry talks trash
+  if(Math.random()<.0008){
+    const taunts=['JERRY: u cant catch me!','JERRY: lol nice try','JERRY: im coming for ur egg!!',
+      'JERRY: *trips over block*','JERRY: wait which way is ur island','JERRY: i forgot to buy a sword',
+      'JERRY: brb getting snacks','JERRY: ur egg looks delicious','JERRY: oops wrong direction',
+      'JERRY: 2+2=5 right?','JERRY: how do i jump again','JERRY: im basically a genius'];
+    pushChat(taunts[Math.floor(Math.random()*taunts.length)]);
   }
   if(threat)aiChase(ai,threat,dt);
   else if(agg===0||ai.swordTier<1)aiFarm(ai,dt);
@@ -1170,6 +1221,7 @@ function frame(t){
 // ============================== INIT ==============================
 function startGame(mode,playerName){
   G.mode=mode;G.state='COUNTDOWN';G.countdown=5;G.playerName=playerName||'PLAYER';
+  G.grade=parseInt(document.querySelector('.grade-btn.act').dataset.grade)||1;
   G.players=[];G.projectiles=[];G.particles=[];G.tnts=[];
   G.chat=[];G.time=0;G.winner=null;G.challenge=null;
   G.score={math:0,spell:0,total:0};
@@ -1178,7 +1230,7 @@ function startGame(mode,playerName){
   const py=CFG.PLAT_Y+1;
   const h=new Player('red',TEAMS.red.ix+5+.5,py,TEAMS.red.iz+5+1.5,{name:G.playerName});
   G.local=h;G.players.push(h);
-  const ai=new Player('blue',TEAMS.blue.ix+5+.5,py,TEAMS.blue.iz+5+1.5,{ai:true,name:'AI'});
+  const ai=new Player('blue',TEAMS.blue.ix+5+.5,py,TEAMS.blue.iz+5+1.5,{ai:true,name:'JERRY'});
   G.players.push(ai);
   document.getElementById('menu').classList.add('hid');
   document.getElementById('howto').classList.add('hid');
@@ -1223,6 +1275,10 @@ document.getElementById('nameInput').addEventListener('keydown',e=>{
   if(e.key==='Enter'){document.getElementById('playBtn').click();e.preventDefault()}
   e.stopPropagation();
 });
+document.querySelectorAll('.grade-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.grade-btn').forEach(x=>x.classList.remove('act'));
+  b.classList.add('act');
+}));
 document.getElementById('boardBtn').addEventListener('click',showLeaderboard);
 document.getElementById('closeLB').addEventListener('click',()=>document.getElementById('lboard').classList.add('hid'));
 document.getElementById('howBtn').addEventListener('click',toggleHow);
