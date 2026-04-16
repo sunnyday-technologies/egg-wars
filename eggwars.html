@@ -1027,14 +1027,14 @@ function render3D(){
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   const p=G.local||G.players[0];if(!p)return;
   // Sky pass
-  gl.disable(gl.DEPTH_TEST);gl.useProgram(skyP);
+  gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.useProgram(skyP);
   gl.uniform1f(skyUPitch,cam.pitch);
   gl.uniform1f(skyUTime,G.time);
   gl.bindBuffer(gl.ARRAY_BUFFER,skyVBO);
   gl.enableVertexAttribArray(skyAP);gl.vertexAttribPointer(skyAP,2,gl.FLOAT,false,0,0);
   gl.drawArrays(gl.TRIANGLES,0,6);
   gl.disableVertexAttribArray(skyAP);
-  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);
   // World pass (with screen shake)
   let sx=0,sy=0;
   if(shakeT>0){sx=(Math.random()-.5)*shakeAmt*shakeT*2;sy=(Math.random()-.5)*shakeAmt*shakeT*2}
@@ -1168,7 +1168,7 @@ function renderHUD(){
   if(p.bowDraw>0){hx.strokeStyle='#ff0';hx.lineWidth=3;hx.beginPath();hx.arc(cx,cy,20,-PI/2,-PI/2+PI*2*Math.min(1,p.bowDraw/CFG.BOW_DRAW));hx.stroke()}
 
   // Challenge hint near stations
-  if(p.alive&&G.state==='PLAYING'&&!shopOpen&&!G.challenge){
+  if(p.alive&&G.state==='PLAYING'&&!shopOpen&&!G.challenge&&ptrLock){
     for(let dy=-1;dy<=1;dy++)for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
       const bx=Math.floor(p.x)+dx,by=Math.floor(p.y)+dy,bz=Math.floor(p.z)+dz;
       if(isStation(wG(bx,by,bz))&&Math.hypot(p.x-bx-.5,p.z-bz-.5)<3){
