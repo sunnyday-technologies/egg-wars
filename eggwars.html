@@ -51,6 +51,11 @@ h2{color:#ffd700;margin:8px}
 .sitem .nm{font-weight:bold;color:#ffd700}.sitem .cs{color:#aaf;font-size:12px}
 .sitem button{background:#2d4a8e;color:#fff;border:2px solid #ffd700;padding:6px 14px;cursor:pointer;font-family:inherit}
 .sitem button:disabled{background:#555;border-color:#888;cursor:not-allowed;color:#999}
+.cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.cgrid .cell{background:rgba(255,255,255,0.06);border:1px solid #555;padding:8px 6px;min-height:42px;cursor:pointer;font-size:11px;text-align:center;color:#fff;overflow:hidden}
+.cgrid .cell:hover{background:rgba(255,215,0,0.15);border-color:#ffd700}
+.cgrid .cell.empty{color:#444;cursor:default}
+.cgrid .cell.empty:hover{background:rgba(255,255,255,0.06);border-color:#555}
 </style>
 </head>
 <body>
@@ -135,7 +140,7 @@ h2{color:#ffd700;margin:8px}
 <h2>HOW TO PLAY</h2>
 <p><b>MOVE:</b> WASD &nbsp;<b>JUMP:</b> Space &nbsp;<b>SPRINT:</b> Shift &nbsp;<b>LOOK:</b> Mouse</p>
 <p><b>ATTACK:</b> Left Click &nbsp;<b>PLACE BLOCK:</b> Right Click &nbsp;<b>MINE:</b> Hold Left Click with pickaxe</p>
-<p><b>HOTBAR:</b> 1-9 or scroll &nbsp;<b>SHOP:</b> E near gold block &nbsp;<b>USE ITEM:</b> Q</p>
+<p><b>HOTBAR:</b> 1-9 or scroll &nbsp;<b>MERCHANT / CHEST:</b> E near block &nbsp;<b>USE ITEM:</b> Q</p>
 <hr style="border-color:#444;margin:12px 0">
 <h2 style="font-size:18px">EARNING RESOURCES</h2>
 <p>Walk up to a <b style="color:#55ddee">Challenge Station</b> (glowing block) on your island and press <b>E</b>.</p>
@@ -143,7 +148,7 @@ h2{color:#ffd700;margin:8px}
 <p><b style="color:#cfcfcf">Iron Station</b> — easy problems, earn iron<br>
 <b style="color:#e8c547">Gold Station</b> — medium problems, earn gold<br>
 <b style="color:#55ddee">Diamond Station</b> — hard problems, earn diamonds</p>
-<p>Use resources at the <b style="color:#ffd700">Shop ($)</b> to buy blocks, weapons, and armor.</p>
+<p>Use resources at the <b style="color:#ffd700">Merchant ($)</b> to buy blocks, weapons, and armor. Drop loot in your <b style="color:#c98a3a">Team Chest</b> to share with your teammate!</p>
 <p>Build a bridge to the enemy island and destroy their <b style="color:#e04545">EGG</b> to win!</p>
 <button class="btn" id="closeHow">BACK</button>
 </div>
@@ -188,13 +193,14 @@ const CFG={
 // Block types
 const B={AIR:0,GRASS:1,DIRT:2,STONE:3,CEMENT_R:4,CEMENT_B:5,WOOD:6,OBSIDIAN:7,
   EGG_R:8,EGG_B:9,STATION_IRON:10,STATION_GOLD:11,STATION_DIAMOND:12,SHOP:13,
-  BRICK:14,VINE:15};
+  BRICK:14,VINE:15,CHEST:16};
 const SOLID=new Set([B.GRASS,B.DIRT,B.STONE,B.CEMENT_R,B.CEMENT_B,B.WOOD,B.OBSIDIAN,
-  B.EGG_R,B.EGG_B,B.STATION_IRON,B.STATION_GOLD,B.STATION_DIAMOND,B.SHOP,B.BRICK,B.VINE]);
+  B.EGG_R,B.EGG_B,B.STATION_IRON,B.STATION_GOLD,B.STATION_DIAMOND,B.SHOP,B.BRICK,B.VINE,B.CHEST]);
 function isSolid(b){return SOLID.has(b)}
 function isEgg(b){return b===B.EGG_R||b===B.EGG_B}
 function eggTeam(b){return b===B.EGG_R?'red':b===B.EGG_B?'blue':null}
 function isBreakable(b){return b===B.CEMENT_R||b===B.CEMENT_B||b===B.STONE||b===B.WOOD||b===B.OBSIDIAN||b===B.BRICK}
+function chestTeamAt(x,z){const rd=Math.hypot(x-TEAMS.red.ix,z-TEAMS.red.iz),bd=Math.hypot(x-TEAMS.blue.ix,z-TEAMS.blue.iz);return rd<bd?'red':'blue'}
 function isStation(b){return b===B.STATION_IRON||b===B.STATION_GOLD||b===B.STATION_DIAMOND}
 
 const TEAMS={
@@ -220,8 +226,10 @@ BC[B.STATION_DIAMOND]={top:[.4,.92,.98],side:[.3,.78,.85],bot:[.2,.6,.65]};
 BC[B.SHOP]={top:[.9,.78,.35],side:[.75,.6,.25],bot:[.55,.42,.15]};
 BC[B.BRICK]={top:[.6,.35,.3],side:[.55,.30,.25],bot:[.45,.25,.2]};
 BC[B.VINE]={top:[.3,.55,.25],side:[.25,.48,.2],bot:[.2,.4,.15]};
+BC[B.CHEST]={top:[.55,.36,.14],side:[.45,.28,.10],bot:[.30,.18,.06]};
 
-const HARDNESS={[B.CEMENT_R]:.5,[B.CEMENT_B]:.5,[B.STONE]:1.2,[B.WOOD]:.5,[B.OBSIDIAN]:4,[B.BRICK]:.8,[B.VINE]:.2};
+const HARDNESS={[B.CEMENT_R]:.25,[B.CEMENT_B]:.25,[B.STONE]:.6,[B.WOOD]:.25,[B.OBSIDIAN]:2,[B.BRICK]:.4,[B.VINE]:.1};
+const DROPS={[B.STONE]:{item:'stone',n:1},[B.WOOD]:{item:'wood',n:1},[B.BRICK]:{item:'brick',n:1},[B.OBSIDIAN]:{item:'obsidian',n:1},[B.CEMENT_R]:{item:'cement',n:1},[B.CEMENT_B]:{item:'cement',n:1}};
 
 // ============================== MATH ==============================
 function m4(){const m=new Float32Array(16);m[0]=m[5]=m[10]=m[15]=1;return m}
@@ -343,7 +351,7 @@ function bindM(buf){gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.vertexAttribPointer(aP
 
 // ============================== WORLD ==============================
 const G={state:'MENU',mode:'mixed',world:null,chunks:[],players:[],local:null,
-  projectiles:[],particles:[],tnts:[],eggs:{},shops:{},
+  projectiles:[],particles:[],tnts:[],eggs:{},shops:{},chests:{},
   chat:[],time:0,countdown:0,winner:null,
   challenge:null,score:{math:0,spell:0,total:0},
   streak:0,powerups:[],skin:'default',jerrySkin:'tiger',
@@ -372,7 +380,7 @@ function wS(x,y,z,v){if(x<0||y<0||z<0||x>=CFG.MAP_X||y>=CFG.MAP_Y||z>=CFG.MAP_Z)
 // ============================== WORLD GEN ==============================
 function genWorld(){
   G.world=new Uint8Array(CFG.MAP_X*CFG.MAP_Y*CFG.MAP_Z);
-  G.eggs={};G.shops={};
+  G.eggs={};G.shops={};G.chests={};
   buildIsland(TEAMS.red.ix,TEAMS.red.iz,'red');
   buildIsland(TEAMS.blue.ix,TEAMS.blue.iz,'blue');
   initChunks();
@@ -381,42 +389,20 @@ function genWorld(){
 function buildIsland(ox,oz,team){
   const h=Math.floor(CFG.ISLAND/2),py=CFG.PLAT_Y;
   const td=TEAMS[team];
-  // Platform layers
+  // Flat platform — grass top, dirt+stone underside
   for(let dz=-h;dz<=h;dz++)for(let dx=-h;dx<=h;dx++){
     const dist=Math.max(Math.abs(dx),Math.abs(dz));
     if(dist>h)continue;
-    const x=ox+dx,z=oz+dz;
-    const edge=dist===h;
-    // Main platform
+    const x=ox+dx,z=oz+dz,edge=dist===h;
     wS(x,py,z,edge?B.BRICK:B.GRASS);
     wS(x,py-1,z,B.DIRT);
     wS(x,py-2,z,B.STONE);
-    // Decorative underside cone
     if(dist<=h-2)wS(x,py-3,z,B.STONE);
     if(dist<=h-4)wS(x,py-4,z,B.STONE);
   }
-  // Tower walls at corners
-  for(let y=py+1;y<=py+4;y++){
-    wS(ox-h+1,y,oz-h+1,B.BRICK);wS(ox+h-1,y,oz-h+1,B.BRICK);
-    wS(ox-h+1,y,oz+h-1,B.BRICK);wS(ox+h-1,y,oz+h-1,B.BRICK);
-  }
-  // Battlement posts
-  for(let y=py+1;y<=py+2;y++){
-    for(let d=-h;d<=h;d+=3){
-      if(Math.abs(d)>=h-1)continue;
-      wS(ox+d,y,oz-h,B.BRICK);wS(ox+d,y,oz+h,B.BRICK);
-      wS(ox-h,y,oz+d,B.BRICK);wS(ox+h,y,oz+d,B.BRICK);
-    }
-  }
-  // Vine decoration
-  for(let dz=-h;dz<=h;dz+=4)for(let dx=-h;dx<=h;dx+=4){
-    if(Math.abs(dx)<h&&Math.abs(dz)<h)continue;
-    wS(ox+dx,py-1,oz+dz,B.VINE);
-  }
-  // Egg in center, elevated on a small pedestal
-  wS(ox,py+1,oz,B.STONE);
-  wS(ox,py+2,oz,td.egg);
-  G.eggs[team]={x:ox,y:py+2,z:oz,hp:CFG.EGG_HP,alive:true};
+  // Egg directly on grass
+  wS(ox,py+1,oz,td.egg);
+  G.eggs[team]={x:ox,y:py+1,z:oz,hp:CFG.EGG_HP,alive:true};
   // Challenge stations
   wS(ox-3,py+1,oz-3,B.STATION_IRON);
   wS(ox+3,py+1,oz-3,B.STATION_IRON);
@@ -425,6 +411,51 @@ function buildIsland(ox,oz,team){
   // Shop
   wS(ox,py+1,oz+4,B.SHOP);
   G.shops[team]={x:ox,y:py+1,z:oz+4};
+  // Shared team chest — placed opposite the gate (never blocks exit)
+  const cxP=ox-(team==='red'?1:-1)*4,czP=oz+2;
+  wS(cxP,py+1,czP,B.CHEST);
+  G.chests[team]={x:cxP,y:py+1,z:czP,inv:G.chests[team]&&G.chests[team].inv||new Array(9).fill(null)};
+  // ===== Castle =====
+  // Gate faces enemy island (along x). Red island gate on +x side, blue on -x.
+  const gateSide=team==='red'?1:-1,wh=h-1;
+  // Curtain walls with crenellations — skip 3-tile gate gap on enemy-facing edge
+  for(let d=-wh;d<=wh;d++){
+    const crenel=((d+wh)%2===0);
+    const wallH=crenel?3:4;
+    // North edge (z=-wh) and South edge (z=+wh)
+    for(const sz of[-wh,wh]){
+      for(let y=1;y<=wallH;y++)wS(ox+d,py+y,oz+sz,B.BRICK);
+    }
+    // East/West edges with gate gap on enemy-facing side
+    for(const sx of[-wh,wh]){
+      const isGateSide=(sx===gateSide*wh);
+      if(isGateSide&&Math.abs(d)<=1)continue; // 3-tile gate gap
+      for(let y=1;y<=wallH;y++)wS(ox+sx,py+y,oz+d,B.BRICK);
+    }
+  }
+  // Gatehouse towers flanking the gate (4 tall)
+  for(let y=1;y<=4;y++){
+    wS(ox+gateSide*wh,py+y,oz-2,B.BRICK);
+    wS(ox+gateSide*wh,py+y,oz+2,B.BRICK);
+    wS(ox+gateSide*(wh-1),py+y,oz-2,B.BRICK);
+    wS(ox+gateSide*(wh-1),py+y,oz+2,B.BRICK);
+  }
+  // Keep: 5x5 brick tower, 5 tall, open roof, entrance facing inward (toward shop at +z)
+  for(let y=1;y<=5;y++){
+    for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){
+      const onEdge=(Math.abs(dx)===2||Math.abs(dz)===2);
+      if(!onEdge)continue;
+      // Entrance: 3-tile gap on +z face at lower 3 rows, and spare egg center
+      if(dz===2&&Math.abs(dx)<=1&&y<=3)continue;
+      // Don't overwrite egg
+      if(dx===0&&dz===0&&y===1)continue;
+      wS(ox+dx,py+y,oz+dz,B.BRICK);
+    }
+  }
+  // Wood accent ring on keep floor around egg (1 high, 4 corners only — avoid blocking path)
+  for(const[wx,wz]of[[-1,-1],[1,-1],[-1,1],[1,1]]){
+    if(wG(ox+wx,py+1,oz+wz)===B.AIR)wS(ox+wx,py+1,oz+wz,B.WOOD);
+  }
 }
 
 // ============================== CHUNKS ==============================
@@ -594,7 +625,7 @@ function genMathProblem(tier){
 // Grade-scaled spelling
 const SPELL_BY_GRADE={
   0:['at','in','it','on','up','go','me','we','am','an','is','no','do','so','to'],
-  1:['cat','dog','sun','hat','red','big','run','fun','map','cup','pen','bed','sit','top','box','log','net','pig','rug','van'],
+  1:['better','born','horn','listen','oar','corn','core','guess','guest'],
   2:['jump','ball','tree','fish','rain','play','book','moon','frog','bird','cake','star','home','blue','help','hand','milk','bear'],
   3:['bridge','castle','dragon','forest','island','puzzle','garden','rocket','monkey','rabbit','basket','window','number','prince'],
   4:['fortress','treasure','champion','defender','adventure','challenge','mountain','dinosaur','elephant','sandwich','homework','birthday'],
@@ -760,10 +791,11 @@ class Player{
     if(this.breakTgt!==key){this.breakTgt=key;this.breakProg=0}
     let hard=HARDNESS[hit.block]||1;
     if(hit.block===B.OBSIDIAN&&this.pickTier<3)return;
-    if(hit.block===B.STONE&&this.pickTier<2)hard*=3;
-    if(hit.block===B.OBSIDIAN&&this.pickTier<4)hard*=2;
+    if(hit.block===B.STONE&&this.pickTier<2)hard*=2;
+    if(hit.block===B.OBSIDIAN&&this.pickTier<4)hard*=1.5;
     this.breakProg+=dt;
-    if(this.breakProg>=hard){wS(hit.x,hit.y,hit.z,B.AIR);this.breakProg=0;this.breakTgt=null;sfx.brk();spawnP(hit.x+.5,hit.y+.5,hit.z+.5,[.5,.5,.5],8);
+    if(this.breakProg>=hard){const drop=DROPS[hit.block];wS(hit.x,hit.y,hit.z,B.AIR);this.breakProg=0;this.breakTgt=null;sfx.brk();spawnP(hit.x+.5,hit.y+.5,hit.z+.5,[.5,.5,.5],8);
+      if(drop)this.addItem(drop.item,drop.n);
       if(G.mode==='multi'&&this===G.local)netSend({type:'block',x:hit.x,y:hit.y,z:hit.z,b:0})}
   }
   doPlace(hit){
@@ -772,6 +804,9 @@ class Player{
     if(sel.item==='cement')bt=TEAMS[this.team].cement;
     else if(sel.item==='stone')bt=B.STONE;
     else if(sel.item==='obsidian')bt=B.OBSIDIAN;
+    else if(sel.item==='wood')bt=B.WOOD;
+    else if(sel.item==='brick')bt=B.BRICK;
+    else if(sel.item==='dirt')bt=B.DIRT;
     else if(sel.item==='tnt'){this.placeTNT(hit);return}
     else return;
     if(!hit)return;
@@ -835,49 +870,91 @@ function updateTNT(dt){
   }
 }
 
-// ============================== SHOP ==============================
+// ============================== MERCHANT ==============================
 const SITEMS=[
-  {tab:'Blocks',name:'Cement x16',cost:{iron:4},fn:p=>p.addItem('cement',16)},
-  {tab:'Blocks',name:'Stone x4',cost:{iron:12},fn:p=>p.addItem('stone',4)},
-  {tab:'Blocks',name:'Obsidian x1',cost:{diamond:2},fn:p=>p.addItem('obsidian',1)},
-  {tab:'Weapons',name:'Wood Sword',cost:{iron:4},req:p=>p.swordTier<1,fn:p=>{p.swordTier=1;p.addItem('sword',1)}},
-  {tab:'Weapons',name:'Stone Sword',cost:{gold:3},req:p=>p.swordTier<2,fn:p=>{p.swordTier=2;p.addItem('sword',1)}},
-  {tab:'Weapons',name:'Iron Sword',cost:{gold:8},req:p=>p.swordTier<3,fn:p=>{p.swordTier=3;p.addItem('sword',1)}},
-  {tab:'Weapons',name:'Diamond Sword',cost:{diamond:3},req:p=>p.swordTier<4,fn:p=>{p.swordTier=4;p.addItem('sword',1)}},
-  {tab:'Weapons',name:'Stone Pickaxe',cost:{iron:10},req:p=>p.pickTier<2,fn:p=>{p.pickTier=2}},
-  {tab:'Weapons',name:'Iron Pickaxe',cost:{gold:4},req:p=>p.pickTier<3,fn:p=>{p.pickTier=3}},
-  {tab:'Weapons',name:'Bow',cost:{gold:8},fn:p=>{p.addItem('bow',1)}},
-  {tab:'Weapons',name:'Arrows x8',cost:{gold:2},fn:p=>p.addItem('arrow',8)},
-  {tab:'Armor',name:'Chainmail',cost:{iron:30},req:p=>p.armorTier<1,fn:p=>{p.armorTier=1}},
-  {tab:'Armor',name:'Iron Armor',cost:{gold:8},req:p=>p.armorTier<2,fn:p=>{p.armorTier=2}},
-  {tab:'Armor',name:'Diamond Armor',cost:{diamond:4},req:p=>p.armorTier<3,fn:p=>{p.armorTier=3}},
-  {tab:'Utilities',name:'Golden Apple',cost:{gold:4},fn:p=>p.addItem('apple',1)},
-  {tab:'Utilities',name:'TNT',cost:{gold:3},fn:p=>p.addItem('tnt',1)},
+  {name:'Cement x16',cost:{iron:4},fn:p=>p.addItem('cement',16)},
+  {name:'Stone x4',cost:{iron:12},fn:p=>p.addItem('stone',4)},
+  {name:'Obsidian x1',cost:{diamond:2},fn:p=>p.addItem('obsidian',1)},
+  {name:'Wood Sword',cost:{iron:4},req:p=>p.swordTier<1,fn:p=>{p.swordTier=1;p.addItem('sword',1)}},
+  {name:'Stone Sword',cost:{gold:3},req:p=>p.swordTier<2,fn:p=>{p.swordTier=2;p.addItem('sword',1)}},
+  {name:'Iron Sword',cost:{gold:8},req:p=>p.swordTier<3,fn:p=>{p.swordTier=3;p.addItem('sword',1)}},
+  {name:'Diamond Sword',cost:{diamond:3},req:p=>p.swordTier<4,fn:p=>{p.swordTier=4;p.addItem('sword',1)}},
+  {name:'Stone Pickaxe',cost:{iron:10},req:p=>p.pickTier<2,fn:p=>{p.pickTier=2}},
+  {name:'Iron Pickaxe',cost:{gold:4},req:p=>p.pickTier<3,fn:p=>{p.pickTier=3}},
+  {name:'Bow',cost:{gold:8},fn:p=>{p.addItem('bow',1)}},
+  {name:'Arrows x8',cost:{gold:2},fn:p=>p.addItem('arrow',8)},
+  {name:'Chainmail',cost:{iron:30},req:p=>p.armorTier<1,fn:p=>{p.armorTier=1}},
+  {name:'Iron Armor',cost:{gold:8},req:p=>p.armorTier<2,fn:p=>{p.armorTier=2}},
+  {name:'Diamond Armor',cost:{diamond:4},req:p=>p.armorTier<3,fn:p=>{p.armorTier=3}},
+  {name:'Golden Apple',cost:{gold:4},fn:p=>p.addItem('apple',1)},
+  {name:'TNT',cost:{gold:3},fn:p=>p.addItem('tnt',1)},
 ];
 function canAff(p,c){for(const k in c)if((p.res[k]||0)<c[k])return false;return true}
 function pay(p,c){for(const k in c)p.res[k]-=c[k]}
 function costStr(c){return Object.entries(c).map(([k,v])=>v+' '+k).join(', ')}
 
-let shopOpen=false,shopTab='Blocks',shopPlayer=null;
+let shopOpen=false,shopPlayer=null;
 function openShop(p){shopOpen=true;shopPlayer=p;document.exitPointerLock();document.getElementById('shopEl').style.display='block';renderShop()}
 function closeShop(){shopOpen=false;document.getElementById('shopEl').style.display='none';if(G.state==='PLAYING'&&!isMobile)glC.requestPointerLock()}
 function renderShop(){
   const el=document.getElementById('shopEl'),p=shopPlayer;if(!p)return;
-  const tabs=['Blocks','Weapons','Armor','Utilities'];
-  let h='<h2 style="color:#ffd700;margin:0 0 4px">SHOP</h2>';
-  h+='<div style="color:#aaa;font-size:12px">Iron:'+p.res.iron+' Gold:'+p.res.gold+' Diamond:'+p.res.diamond+'</div>';
-  h+='<div class="stabs">';for(const t of tabs)h+='<div class="stab'+(t===shopTab?' act':'')+'" data-t="'+t+'">'+t+'</div>';h+='</div>';
-  for(let i=0;i<SITEMS.length;i++){const it=SITEMS[i];if(it.tab!==shopTab)continue;
+  let h='<h2 style="color:#ffd700;margin:0 0 4px">MERCHANT</h2>';
+  h+='<div style="color:#aaa;font-size:12px;margin-bottom:6px">Iron:'+p.res.iron+' Gold:'+p.res.gold+' Diamond:'+p.res.diamond+'</div>';
+  for(let i=0;i<SITEMS.length;i++){const it=SITEMS[i];
     const ok=canAff(p,it.cost)&&(!it.req||it.req(p));
     h+='<div class="sitem"><div><div class="nm">'+it.name+'</div><div class="cs">'+costStr(it.cost)+'</div></div>';
     h+='<button data-i="'+i+'" '+(ok?'':'disabled')+'>BUY</button></div>'}
   h+='<div style="text-align:right;color:#888;font-size:11px;margin-top:8px">Press E or ESC to close</div>';
   el.innerHTML=h;
-  el.querySelectorAll('.stab').forEach(t=>t.onclick=()=>{shopTab=t.dataset.t;renderShop()});
   el.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>{
     const it=SITEMS[parseInt(b.dataset.i)],p=shopPlayer;
     if(!p||!canAff(p,it.cost)||it.req&&!it.req(p))return;
     pay(p,it.cost);it.fn(p);sfx.buy();renderShop()});
+}
+
+// ============================== CHEST (shared team trading) ==============================
+let chestOpen=false,chestPlayer=null,chestTeam=null;
+function openChest(team,p){chestOpen=true;chestPlayer=p;chestTeam=team;document.exitPointerLock();document.getElementById('shopEl').style.display='block';renderChest()}
+function closeChest(){chestOpen=false;chestTeam=null;document.getElementById('shopEl').style.display='none';if(G.state==='PLAYING'&&!isMobile)glC.requestPointerLock()}
+function renderChest(){
+  const el=document.getElementById('shopEl'),p=chestPlayer,t=chestTeam;if(!p||!t)return;
+  const ch=G.chests[t];if(!ch)return;
+  const invCell=(item,i,side)=>{
+    if(!item)return '<div class="cell empty" data-side="'+side+'" data-i="'+i+'">·</div>';
+    return '<div class="cell" data-side="'+side+'" data-i="'+i+'"><span>'+item.item+(item.n>1?' x'+item.n:'')+'</span></div>';
+  };
+  let h='<h2 style="color:#c98a3a;margin:0 0 4px">TEAM CHEST — '+t.toUpperCase()+'</h2>';
+  h+='<div style="color:#aaa;font-size:11px;margin-bottom:8px">Shared with your teammate. Click an item to move it.</div>';
+  h+='<div style="display:flex;gap:16px;justify-content:space-between">';
+  h+='<div style="flex:1"><div style="color:#c98a3a;font-size:12px;margin-bottom:4px">CHEST</div><div class="cgrid">';
+  for(let i=0;i<9;i++)h+=invCell(ch.inv[i],i,'chest');
+  h+='</div></div>';
+  h+='<div style="flex:1"><div style="color:#ffd700;font-size:12px;margin-bottom:4px">YOUR INVENTORY</div><div class="cgrid">';
+  for(let i=0;i<9;i++)h+=invCell(p.inv[i],i,'player');
+  h+='</div></div>';
+  h+='</div>';
+  h+='<div style="text-align:right;color:#888;font-size:11px;margin-top:10px">Press E or ESC to close</div>';
+  el.innerHTML=h;
+  el.querySelectorAll('.cell').forEach(c=>c.onclick=()=>{
+    const i=parseInt(c.dataset.i),side=c.dataset.side;
+    if(side==='chest'){
+      const it=ch.inv[i];if(!it)return;
+      // Move one unit from chest -> player
+      p.addItem(it.item,1);it.n--;if(it.n<=0)ch.inv[i]=null;
+      if(G.mode==='multi')netSend({type:'chest',team:t,slot:i,inv:ch.inv});
+    }else{
+      const it=p.inv[i];if(!it||it.item==='fist'||it.item==='pickaxe')return;
+      // Move one unit from player -> chest (find matching slot or empty)
+      let tgt=-1;
+      for(let j=0;j<9;j++)if(ch.inv[j]&&ch.inv[j].item===it.item){tgt=j;break}
+      if(tgt<0)for(let j=0;j<9;j++)if(!ch.inv[j]){tgt=j;break}
+      if(tgt<0){pushChat('Chest full!');return}
+      if(ch.inv[tgt])ch.inv[tgt].n++;else ch.inv[tgt]={item:it.item,n:1};
+      p.rmItem(i);
+      if(G.mode==='multi')netSend({type:'chest',team:t,slot:tgt,inv:ch.inv});
+    }
+    sfx.place();renderChest();
+  });
 }
 
 // ============================== AI ==============================
@@ -975,8 +1052,8 @@ addEventListener('keydown',e=>{
   if(G.challenge&&G.challenge.active&&document.activeElement===document.getElementById('chInput'))return;
   keys[e.code]=true;
   if(G.state==='MENU'&&e.code==='KeyH')toggleHow();
-  if(e.code==='Escape'){if(shopOpen)closeShop();if(G.challenge)closeChallenge()}
-  if(G.state!=='PLAYING'||shopOpen||G.challenge)return;
+  if(e.code==='Escape'){if(shopOpen)closeShop();if(chestOpen)closeChest();if(G.challenge)closeChallenge()}
+  if(G.state!=='PLAYING'||shopOpen||chestOpen||G.challenge)return;
   const p=G.local;if(!p)return;
   const n=parseInt(e.key);if(n>=1&&n<=9)p.slot=n-1;
   if(e.code==='KeyE'){
@@ -986,6 +1063,7 @@ addEventListener('keydown',e=>{
     if(hit){
       if(isStation(hit.block)){openChallenge(hit.block);return}
       if(hit.block===B.SHOP){shopOpen?closeShop():openShop(p);return}
+      if(hit.block===B.CHEST){openChest(chestTeamAt(hit.x,hit.z),p);return}
     }
     // Fallback: proximity (closest) if not looking at anything interactable
     const nearby=[];
@@ -995,12 +1073,14 @@ addEventListener('keydown',e=>{
       const d=Math.hypot(p.x-bx-.5,p.z-bz-.5);
       if(isStation(bl)&&d<3)nearby.push({type:'station',block:bl,dist:d});
       if(bl===B.SHOP&&d<3)nearby.push({type:'shop',dist:d});
+      if(bl===B.CHEST&&d<3)nearby.push({type:'chest',x:bx,z:bz,dist:d});
     }
     nearby.sort((a,b)=>a.dist-b.dist);
     if(nearby.length>0){
       const c=nearby[0];
       if(c.type==='station'){openChallenge(c.block);return}
       if(c.type==='shop'){shopOpen?closeShop():openShop(p);return}
+      if(c.type==='chest'){openChest(chestTeamAt(c.x,c.z),p);return}
     }
   }
   if(e.code==='KeyQ')p.eatApple();
@@ -1011,7 +1091,7 @@ addEventListener('keyup',e=>{
 });
 glC.addEventListener('mousedown',e=>{
   resumeA();
-  if(!ptrLock&&G.state==='PLAYING'&&!shopOpen&&!G.challenge){if(!isMobile)glC.requestPointerLock();return}
+  if(!ptrLock&&G.state==='PLAYING'&&!shopOpen&&!chestOpen&&!G.challenge){if(!isMobile)glC.requestPointerLock();return}
   if(e.button===0)mouse.left=true;if(e.button===2)mouse.right=true;
 });
 glC.addEventListener('mouseup',e=>{
@@ -1030,11 +1110,11 @@ addEventListener('mousemove',e=>{
 glC.addEventListener('wheel',e=>{const p=G.local;if(!p)return;p.slot=(p.slot+(e.deltaY>0?1:-1)+9)%9;e.preventDefault()},{passive:false});
 document.addEventListener('pointerlockchange',()=>{
   ptrLock=document.pointerLockElement===glC;
-  document.getElementById('lockMsg').classList.toggle('hid',ptrLock||G.state!=='PLAYING'||shopOpen||!!G.challenge);
+  document.getElementById('lockMsg').classList.toggle('hid',ptrLock||G.state!=='PLAYING'||shopOpen||chestOpen||!!G.challenge);
 });
 
 function processInput(dt){
-  const p=G.local;if(!p||!p.alive||shopOpen||G.challenge)return;
+  const p=G.local;if(!p||!p.alive||shopOpen||chestOpen||G.challenge)return;
   let mx=0,mz=0;
   if(keys['KeyW']||keys['ArrowUp'])mz+=1;if(keys['KeyS']||keys['ArrowDown'])mz-=1;
   if(keys['KeyA']||keys['ArrowLeft'])mx-=1;if(keys['KeyD']||keys['ArrowRight'])mx+=1;
@@ -1169,7 +1249,7 @@ function renderHUD(){
   if(p.breakTgt&&p.breakProg>0){hx.fillStyle='rgba(0,0,0,0.5)';hx.fillRect(cx-30,cy+18,60,6);hx.fillStyle='#ffd700';hx.fillRect(cx-30,cy+18,60*Math.min(1,p.breakProg/1.2),6)}
   // First-person hand/weapon (detailed rendering)
   const sel=p.inv[p.slot];
-  const handX=W*0.68,handY=H*0.48;
+  const handX=W*0.72,handY=H*0.48;
   const swOff=p.swingT>0?Math.sin(p.swingT*12)*35:0;
   const bob=Math.sin(p.walkDist*4)*3;
   hx.save();
@@ -1178,12 +1258,12 @@ function renderHUD(){
   const sk=SKINS[G.skin||'default']||SKINS.default;
   const armC=sk.arms||[.75,.6,.38];
   const r255=(c,m=1)=>'rgb('+Math.floor(c[0]*255*m)+','+Math.floor(c[1]*255*m)+','+Math.floor(c[2]*255*m)+')';
-  // Arm — 3D shaded with highlight
-  hx.fillStyle=r255(armC,.7);hx.fillRect(-2,42,38,90);
-  hx.fillStyle=r255(armC,1);hx.fillRect(2,44,30,86);
-  hx.fillStyle=r255(armC,1.15);hx.fillRect(6,46,18,80);
+  // Arm — 3D shaded with highlight (~30% bigger)
+  hx.fillStyle=r255(armC,.7);hx.fillRect(-6,42,50,118);
+  hx.fillStyle=r255(armC,1);hx.fillRect(-1,44,40,112);
+  hx.fillStyle=r255(armC,1.15);hx.fillRect(5,46,24,104);
   // Wrist detail
-  hx.fillStyle=r255(armC,.6);hx.fillRect(2,38,30,6);
+  hx.fillStyle=r255(armC,.6);hx.fillRect(-1,36,40,8);
 
   if(sel&&sel.item==='sword'){
     const cols=[['#8b6914','#c49a2a','#e0b840'],['#6a6a6a','#999','#c8c8c8'],['#6878aa','#8ea0d8','#c0d0f8'],['#30a898','#50d8c0','#90ffe8']];
@@ -1208,21 +1288,36 @@ function renderHUD(){
     hx.beginPath();hx.moveTo(12,-60);hx.lineTo(12,10);hx.stroke();
 
   }else if(sel&&sel.item==='pickaxe'){
-    const cols=[['#8b6914','#c49a2a'],['#6a6a6a','#aaa'],['#6878aa','#a0b8e0'],['#30a898','#70e8d0']];
+    const cols=[['#6b4a08','#a8811e','#e4c050'],['#4a4a4a','#8a8a8a','#d8d8d8'],['#4858a0','#7888c8','#b8c8f0'],['#108878','#40c8b0','#a0ffe8']];
     const pc=cols[Math.max(0,p.pickTier-1)];
-    // Handle — wooden stick with grain
-    hx.fillStyle='#3a2008';hx.fillRect(12,-30,12,74);
-    hx.fillStyle='#5a3510';hx.fillRect(14,-28,8,70);
-    hx.fillStyle='#7a4a18';hx.globalAlpha=.4;hx.fillRect(15,-20,2,50);hx.globalAlpha=1;
-    // Head — curved pick shape
+    // Handle — thicker, longer wooden shaft
+    hx.fillStyle='#2a1606';hx.fillRect(10,-28,18,90);
+    hx.fillStyle='#4a2808';hx.fillRect(12,-26,14,86);
+    hx.fillStyle='#6a3c10';hx.fillRect(14,-24,10,82);
+    hx.fillStyle='#8a5220';hx.globalAlpha=.35;hx.fillRect(16,-18,2,66);hx.globalAlpha=1;
+    // Binding wrap where handle meets head (darker band)
+    hx.fillStyle='#1a0a02';hx.fillRect(10,-24,18,10);
+    hx.fillStyle='#3a2008';hx.fillRect(11,-22,16,6);
+    hx.strokeStyle='rgba(0,0,0,0.6)';hx.lineWidth=1;
+    for(let i=0;i<4;i++){hx.beginPath();hx.moveTo(10,-22+i*2);hx.lineTo(28,-22+i*2);hx.stroke()}
+    // Head — wider (46px), thicker (18px), with pronounced curved points
     hx.fillStyle=pc[0];
-    hx.beginPath();hx.moveTo(-4,-36);hx.lineTo(8,-30);hx.lineTo(8,-24);hx.lineTo(-2,-28);hx.fill();
-    hx.beginPath();hx.moveTo(40,-36);hx.lineTo(28,-30);hx.lineTo(28,-24);hx.lineTo(38,-28);hx.fill();
-    hx.fillRect(4,-34,28,12);
-    hx.fillStyle=pc[1];hx.fillRect(6,-32,24,8);
-    // Pick points shine
-    hx.fillStyle='rgba(255,255,255,0.3)';
-    hx.fillRect(-2,-35,4,2);hx.fillRect(34,-35,4,2);
+    // Left point (more pronounced curve)
+    hx.beginPath();hx.moveTo(-12,-44);hx.lineTo(4,-38);hx.lineTo(6,-22);hx.lineTo(-8,-30);hx.closePath();hx.fill();
+    // Right point
+    hx.beginPath();hx.moveTo(50,-44);hx.lineTo(34,-38);hx.lineTo(32,-22);hx.lineTo(46,-30);hx.closePath();hx.fill();
+    // Main head block — 3 color stops for metallic depth
+    hx.fillStyle=pc[0];hx.fillRect(2,-40,34,18);
+    hx.fillStyle=pc[1];hx.fillRect(4,-38,30,14);
+    hx.fillStyle=pc[2];hx.fillRect(6,-36,26,6);
+    // Darker under-edge
+    hx.fillStyle='rgba(0,0,0,0.35)';hx.fillRect(4,-24,30,2);
+    // Specular highlights on pick points (sharp)
+    hx.fillStyle='rgba(255,255,255,0.5)';
+    hx.beginPath();hx.moveTo(-12,-44);hx.lineTo(-8,-42);hx.lineTo(-4,-40);hx.lineTo(-10,-43);hx.closePath();hx.fill();
+    hx.beginPath();hx.moveTo(50,-44);hx.lineTo(46,-42);hx.lineTo(42,-40);hx.lineTo(48,-43);hx.closePath();hx.fill();
+    // Top edge shine on head
+    hx.fillStyle='rgba(255,255,255,0.25)';hx.fillRect(6,-40,26,2);
 
   }else if(sel&&sel.item==='bow'){
     // Bow body — curved wood
@@ -1246,10 +1341,11 @@ function renderHUD(){
       hx.fillStyle='#888';hx.beginPath();hx.moveTo(50,15);hx.lineTo(44,11);hx.lineTo(44,19);hx.fill();
     }
 
-  }else if(sel&&(sel.item==='cement'||sel.item==='stone'||sel.item==='obsidian')){
+  }else if(sel&&(sel.item==='cement'||sel.item==='stone'||sel.item==='obsidian'||sel.item==='wood'||sel.item==='brick'||sel.item==='dirt')){
     // Block in hand
-    const bc=sel.item==='cement'?'#908a86':sel.item==='stone'?'#8b8b8b':'#2d1b69';
-    const bd=sel.item==='cement'?'#6a6460':sel.item==='stone'?'#666':'#1a0f40';
+    const bcMap={cement:'#908a86',stone:'#8b8b8b',obsidian:'#2d1b69',wood:'#8c5a20',brick:'#8c4a3a',dirt:'#6b4a22'};
+    const bdMap={cement:'#6a6460',stone:'#666',obsidian:'#1a0f40',wood:'#5a3510',brick:'#4a201a',dirt:'#3d2a14'};
+    const bc=bcMap[sel.item],bd=bdMap[sel.item];
     // 3D block (isometric-ish)
     hx.fillStyle=bd;hx.fillRect(-2,-10,34,34);
     hx.fillStyle=bc;hx.fillRect(0,-8,30,30);
@@ -1290,7 +1386,7 @@ function renderHUD(){
   if(p.bowDraw>0){hx.strokeStyle='#ff0';hx.lineWidth=3;hx.beginPath();hx.arc(cx,cy,20,-PI/2,-PI/2+PI*2*Math.min(1,p.bowDraw/CFG.BOW_DRAW));hx.stroke()}
 
   // Proximity hints — collect all nearby, sort by distance, stack vertically
-  if(p.alive&&G.state==='PLAYING'&&!shopOpen&&!G.challenge&&ptrLock){
+  if(p.alive&&G.state==='PLAYING'&&!shopOpen&&!chestOpen&&!G.challenge&&ptrLock){
     const hintList=[];
     const seen=new Set();
     for(let dy=-1;dy<=1;dy++)for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
@@ -1304,7 +1400,10 @@ function renderHUD(){
     }
     const s=G.shops[p.team];
     if(s&&Math.hypot(p.x-s.x-.5,p.z-s.z-.5)<3&&Math.abs(p.y-s.y)<2)
-      hintList.push({text:'Press E — Shop',dist:Math.hypot(p.x-s.x-.5,p.z-s.z-.5)});
+      hintList.push({text:'Press E — Merchant',dist:Math.hypot(p.x-s.x-.5,p.z-s.z-.5)});
+    const ch=G.chests[p.team];
+    if(ch&&Math.hypot(p.x-ch.x-.5,p.z-ch.z-.5)<3&&Math.abs(p.y-ch.y)<2)
+      hintList.push({text:'Press E — Team Chest',dist:Math.hypot(p.x-ch.x-.5,p.z-ch.z-.5)});
     hintList.sort((a,b)=>a.dist-b.dist);
     const hints=hintList.map(h=>h.text);
     if(hints.length>0){
@@ -1380,10 +1479,10 @@ function renderHUD(){
     hx.textAlign='left';
   }
   // Tutorial overlay
-  if(G.tut&&!G.tut.done&&G.state==='PLAYING'&&p.alive&&!shopOpen&&!G.challenge){
+  if(G.tut&&!G.tut.done&&G.state==='PLAYING'&&p.alive&&!shopOpen&&!chestOpen&&!G.challenge){
     const tSteps=[
       {msg:'Walk to a glowing POWER CORE station!',tx:TEAMS.red.ix+2+.5,tz:TEAMS.red.iz+2+.5,check:()=>G.score.total>=1},
-      {msg:'Great! Now visit the SHOP ($) — press E near the gold block!',tx:G.shops.red?G.shops.red.x+.5:0,tz:G.shops.red?G.shops.red.z+.5:0,check:()=>p.swordTier>=1||p.findSlot('cement')>=0},
+      {msg:'Great! Now visit the MERCHANT ($) — press E near the gold block!',tx:G.shops.red?G.shops.red.x+.5:0,tz:G.shops.red?G.shops.red.z+.5:0,check:()=>p.swordTier>=1||p.findSlot('cement')>=0},
       {msg:'Buy CEMENT and a SWORD! Then build a bridge to Jerry\'s island!',tx:32,tz:24,check:()=>{
         const e=G.eggs.blue;return e&&Math.hypot(p.x-e.x,p.z-e.z)<10}},
       {msg:'You\'re close! ATTACK Jerry\'s EGG to win!',tx:G.eggs.blue?G.eggs.blue.x+.5:36,tz:G.eggs.blue?G.eggs.blue.z+.5:22,check:()=>false},
@@ -1463,6 +1562,23 @@ function drawItemH(c,x,y,s,name,p){
     c.fillStyle='#0d0828';c.fillRect(x+1,y+1,s-2,s-2);
     c.fillStyle='#2d1b69';c.fillRect(x+2,y+2,s-4,s-4);
     c.fillStyle='#6030b0';c.fillRect(x+5,y+5,2,2);c.fillRect(x+12,y+10,2,2);
+  }else if(name==='wood'){
+    c.fillStyle='#5a3510';c.fillRect(x+1,y+1,s-2,s-2);
+    c.fillStyle='#8c5a20';c.fillRect(x+2,y+2,s-4,s-4);
+    c.strokeStyle='rgba(60,30,0,0.5)';c.lineWidth=1;
+    for(let i=0;i<3;i++){c.beginPath();c.moveTo(x+3,y+4+i*5);c.lineTo(x+s-3,y+4+i*5);c.stroke()}
+  }else if(name==='brick'){
+    c.fillStyle='#4a201a';c.fillRect(x+1,y+1,s-2,s-2);
+    c.fillStyle='#8c4a3a';c.fillRect(x+2,y+2,s-4,s-4);
+    c.strokeStyle='rgba(30,10,8,0.6)';c.lineWidth=1;
+    c.beginPath();c.moveTo(x+2,y+s/2);c.lineTo(x+s-2,y+s/2);c.stroke();
+    c.beginPath();c.moveTo(x+s/2,y+2);c.lineTo(x+s/2,y+s/2);c.stroke();
+    c.beginPath();c.moveTo(x+s/3,y+s/2);c.lineTo(x+s/3,y+s-2);c.stroke();
+    c.beginPath();c.moveTo(x+2*s/3,y+s/2);c.lineTo(x+2*s/3,y+s-2);c.stroke();
+  }else if(name==='dirt'){
+    c.fillStyle='#3d2a14';c.fillRect(x+1,y+1,s-2,s-2);
+    c.fillStyle='#6b4a22';c.fillRect(x+2,y+2,s-4,s-4);
+    c.fillStyle='rgba(0,0,0,0.25)';c.fillRect(x+5,y+6,3,2);c.fillRect(x+12,y+12,2,3);
   }else if(name==='bow'){
     c.strokeStyle='#5a3510';c.lineWidth=3;c.beginPath();c.arc(cx,cy,s/2-3,-PI/2.8,PI/2.8);c.stroke();
     c.strokeStyle='#8b5a1f';c.lineWidth=1.5;c.beginPath();c.arc(cx,cy,s/2-3,-PI/2.8,PI/2.8);c.stroke();
@@ -1704,6 +1820,10 @@ function handleNet(data){
     const p=G.local;if(p&&p.alive)p.takeDamage(data.dmg,data.kx,0,data.kz);addShake(.4);return;
   }
   if(data.type==='chat'){pushChat(data.text);return}
+  if(data.type==='chest'){
+    if(G.chests[data.team]){G.chests[data.team].inv=data.inv;if(chestOpen&&chestTeam===data.team)renderChest()}
+    return;
+  }
 }
 function netSend(d){if(conn&&conn.open)try{conn.send(d)}catch(e){}}
 function netSync(dt){
@@ -1831,7 +1951,7 @@ function initTouch(){
 
 function processTouchInput(dt){
   if(!isMobile)return;
-  const p=G.local;if(!p||!p.alive||shopOpen||G.challenge)return;
+  const p=G.local;if(!p||!p.alive||shopOpen||chestOpen||G.challenge)return;
   // Joystick movement
   if(touchJoy.active||(touchJoy.x!==0||touchJoy.y!==0)){
     const mx=touchJoy.x,mz=-touchJoy.y;
