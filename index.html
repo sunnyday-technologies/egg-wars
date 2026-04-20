@@ -144,7 +144,7 @@ h2{color:#ffd700;margin:8px}
 <hr style="border-color:#444;margin:12px 0">
 <h2 style="font-size:18px">EARNING RESOURCES</h2>
 <p>Walk up to a <b style="color:#55ddee">Challenge Station</b> (glowing block) on your island and press <b>E</b>.</p>
-<p>Solve the math problem or spell the word correctly to earn resources!</p>
+<p>Spell the word correctly to earn resources! All 10 words appear before any repeats.</p>
 <p><b style="color:#cfcfcf">Iron Station</b> — easy problems, earn iron<br>
 <b style="color:#e8c547">Gold Station</b> — medium problems, earn gold<br>
 <b style="color:#55ddee">Diamond Station</b> — hard problems, earn diamonds</p>
@@ -625,17 +625,25 @@ function genMathProblem(tier){
 // Grade-scaled spelling
 const SPELL_BY_GRADE={
   0:['at','in','it','on','up','go','me','we','am','an','is','no','do','so','to'],
-  1:['better','born','horn','listen','oar','corn','core','guess','guest'],
+  1:['cow','town','mouse','how','out','mouth','nothing','early','thought','instead'],
   2:['jump','ball','tree','fish','rain','play','book','moon','frog','bird','cake','star','home','blue','help','hand','milk','bear'],
   3:['bridge','castle','dragon','forest','island','puzzle','garden','rocket','monkey','rabbit','basket','window','number','prince'],
   4:['fortress','treasure','champion','defender','adventure','challenge','mountain','dinosaur','elephant','sandwich','homework','birthday'],
   5:['construction','celebration','extraordinary','multiplication','encyclopedia','professional','communication','entertainment'],
 };
 
+let spellBag=[],spellBagKey='';
+function drawSpellWord(list,key){
+  if(key!==spellBagKey||spellBag.length===0){
+    spellBag=list.slice();spellBagKey=key;
+    for(let i=spellBag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[spellBag[i],spellBag[j]]=[spellBag[j],spellBag[i]]}
+  }
+  return spellBag.pop();
+}
 function genSpellProblem(tier){
   const g=G.grade||1;
   const list=SPELL_BY_GRADE[Math.min(5,g)]||SPELL_BY_GRADE[1];
-  const word=list[Math.floor(Math.random()*list.length)];
+  const word=drawSpellWord(list,String(g));
   const hideCount=Math.min(word.length-1,1+Math.floor(tier*0.7)+Math.floor(g/3));
   const arr=word.split('');
   const indices=[];
@@ -648,8 +656,8 @@ function genSpellProblem(tier){
 }
 
 const REWARDS={
-  [B.STATION_IRON]:{kind:'iron',amount:3,tier:0,label:'Iron',station:'POWER CORE'},
-  [B.STATION_GOLD]:{kind:'gold',amount:2,tier:1,label:'Gold',station:'ENERGY FORGE'},
+  [B.STATION_IRON]:{kind:'iron',amount:1,tier:0,label:'Iron',station:'POWER CORE'},
+  [B.STATION_GOLD]:{kind:'gold',amount:1,tier:1,label:'Gold',station:'ENERGY FORGE'},
   [B.STATION_DIAMOND]:{kind:'diamond',amount:1,tier:2,label:'Diamond',station:'CRYSTAL NEXUS'},
 };
 
@@ -657,11 +665,7 @@ function openChallenge(stationType){
   const reward=REWARDS[stationType];if(!reward)return;
   const chTime=[CFG.CHALLENGE_TIME_EASY,CFG.CHALLENGE_TIME_MED,CFG.CHALLENGE_TIME_HARD][reward.tier];
   G.challenge={active:true,station:stationType,timer:chTime,maxTimer:chTime,answered:false};
-  const mode=G.mode;
-  let prob;
-  if(mode==='math')prob=genMathProblem(reward.tier);
-  else if(mode==='spell')prob=genSpellProblem(reward.tier);
-  else prob=Math.random()<.5?genMathProblem(reward.tier):genSpellProblem(reward.tier);
+  const prob=genSpellProblem(reward.tier);
   G.challenge.problem=prob;
   G.challenge.reward=reward;
 
@@ -669,7 +673,7 @@ function openChallenge(stationType){
   const box=document.getElementById('challengeBox');
   box.style.display='block';
   const stName=reward.station||'CHALLENGE';
-  document.getElementById('chType').textContent=stName+(prob.type==='math'?' — Number Blast':' — Word Forge');
+  document.getElementById('chType').textContent=stName+' — Word Forge';
   if(prob.type==='spell'){
     document.getElementById('chPrompt').textContent='Spell: '+prob.hint;
     setTimeout(()=>{if(G.challenge&&G.challenge.active)document.getElementById('chPrompt').textContent=prob.prompt},2000);
@@ -872,8 +876,8 @@ function updateTNT(dt){
 
 // ============================== MERCHANT ==============================
 const SITEMS=[
-  {name:'Cement x16',cost:{iron:4},fn:p=>p.addItem('cement',16)},
-  {name:'Stone x4',cost:{iron:12},fn:p=>p.addItem('stone',4)},
+  {name:'Cement x16',cost:{iron:10},fn:p=>p.addItem('cement',16)},
+  {name:'Stone x4',cost:{iron:8},fn:p=>p.addItem('stone',4)},
   {name:'Obsidian x1',cost:{diamond:2},fn:p=>p.addItem('obsidian',1)},
   {name:'Wood Sword',cost:{iron:4},req:p=>p.swordTier<1,fn:p=>{p.swordTier=1;p.addItem('sword',1)}},
   {name:'Stone Sword',cost:{gold:3},req:p=>p.swordTier<2,fn:p=>{p.swordTier=2;p.addItem('sword',1)}},
@@ -1726,7 +1730,7 @@ function endGame(winner){
   const skinIcon=SKINS[G.skin]?SKINS[G.skin].icon:'👤';
   h+='<div style="max-width:500px;text-align:left;background:rgba(20,20,40,0.9);padding:20px;border:2px solid #ffd700;margin:12px">';
   h+='<p style="color:#5cb85c;font-size:18px">'+skinIcon+' Challenges Solved: '+G.score.total+'</p>';
-  h+='<p style="color:#aaa">Math: '+G.score.math+' | Spelling: '+G.score.spell+' | Time: '+fmtTime(G.time)+'</p>';
+  h+='<p style="color:#aaa">Words Spelled: '+G.score.spell+' | Time: '+fmtTime(G.time)+'</p>';
   if(streak>1)h+='<p style="color:#ff6b35">Win Streak: '+streak+'</p>';
   h+='<hr style="border-color:#444;margin:8px 0">';
   for(const pl of G.players){
@@ -1992,6 +1996,7 @@ function startGame(mode,playerName){
   G.chat=[];G.time=0;G.winner=null;G.challenge=null;
   G.score={math:0,spell:0,total:0};
   eggHitCD={};cam.pitch=0;cam.yaw=0;
+  spellBag=[];spellBagKey='';
   genWorld();
   const py=CFG.PLAT_Y+1;
   const h=new Player('red',TEAMS.red.ix+5+.5,py,TEAMS.red.iz+5+1.5,{name:G.playerName});
