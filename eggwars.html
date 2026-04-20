@@ -155,9 +155,14 @@ h2{color:#ffd700;margin:8px}
 </div>
 
 <div id="challengeBox">
-<h3 id="chType">MATH CHALLENGE</h3>
-<div class="prompt" id="chPrompt">12 + 7 = ?</div>
-<input type="text" id="chInput" autocomplete="off" spellcheck="false">
+<h3 id="chType">SPELLING CHALLENGE</h3>
+<div class="prompt" id="chPrompt">cow</div>
+<div style="display:flex;gap:8px;justify-content:center;align-items:center;margin-top:4px">
+<input type="text" id="chInput" autocomplete="off" spellcheck="false" style="flex:0 0 auto">
+<button id="chSpeak" type="button" title="Hear the word" style="font-size:22px;background:#2d4a8e;color:#fff;border:2px solid #ffd700;padding:6px 12px;cursor:pointer;font-family:inherit">🔊</button>
+<button id="chMic" type="button" title="Speak your answer" style="font-size:22px;background:#8e2d6d;color:#fff;border:2px solid #e040a0;padding:6px 12px;cursor:pointer;font-family:inherit">🎤</button>
+</div>
+<div id="chVoiceStat" style="font-size:11px;color:#aaa;margin-top:4px;min-height:14px"></div>
 <div class="feedback" id="chFeedback"></div>
 <div class="reward" id="chReward">Reward: +3 Iron</div>
 <div class="timer-bar"><div class="timer-fill" id="chTimer" style="width:100%"></div></div>
@@ -187,7 +192,7 @@ const CFG={
   PLACE_CD:0.12,SENS:0.002,REACH:6,
   PW:0.6,PH:1.7,
   CHALLENGE_TIME_EASY:30,CHALLENGE_TIME_MED:25,CHALLENGE_TIME_HARD:20,
-  AI_PASSIVE:60,AI_ACTIVE:120,
+  AI_PASSIVE:120,AI_ACTIVE:180,
 };
 
 // Block types
@@ -644,27 +649,18 @@ function genSpellProblem(tier){
   const g=G.grade||1;
   const list=SPELL_BY_GRADE[Math.min(5,g)]||SPELL_BY_GRADE[1];
   const word=drawSpellWord(list,String(g));
-  const hideCount=Math.min(word.length-1,1+Math.floor(tier*0.7)+Math.floor(g/3));
-  const arr=word.split('');
-  const indices=[];
-  while(indices.length<hideCount){
-    const i=Math.floor(Math.random()*arr.length);
-    if(!indices.includes(i))indices.push(i);
-  }
-  for(const i of indices)arr[i]='_';
-  return{prompt:arr.join(' '),answer:word.toLowerCase(),hint:word,type:'spell'};
+  return{prompt:word,answer:word.toLowerCase(),hint:word,type:'spell'};
 }
 
 const REWARDS={
-  [B.STATION_IRON]:{kind:'iron',amount:1,tier:0,label:'Iron',station:'POWER CORE'},
-  [B.STATION_GOLD]:{kind:'gold',amount:1,tier:1,label:'Gold',station:'ENERGY FORGE'},
-  [B.STATION_DIAMOND]:{kind:'diamond',amount:1,tier:2,label:'Diamond',station:'CRYSTAL NEXUS'},
+  [B.STATION_IRON]:{kind:'iron',amount:2,tier:0,label:'Iron',station:'POWER CORE'},
+  [B.STATION_GOLD]:{kind:'gold',amount:1,tier:1,label:'Gold',station:'ENERGY FORGE',ironBonus:2},
+  [B.STATION_DIAMOND]:{kind:'diamond',amount:1,tier:2,label:'Diamond',station:'CRYSTAL NEXUS',ironBonus:2},
 };
 
 function openChallenge(stationType){
   const reward=REWARDS[stationType];if(!reward)return;
-  const chTime=[CFG.CHALLENGE_TIME_EASY,CFG.CHALLENGE_TIME_MED,CFG.CHALLENGE_TIME_HARD][reward.tier];
-  G.challenge={active:true,station:stationType,timer:chTime,maxTimer:chTime,answered:false};
+  G.challenge={active:true,station:stationType,study:10,answered:false};
   const prob=genSpellProblem(reward.tier);
   G.challenge.problem=prob;
   G.challenge.reward=reward;
@@ -674,22 +670,21 @@ function openChallenge(stationType){
   box.style.display='block';
   const stName=reward.station||'CHALLENGE';
   document.getElementById('chType').textContent=stName+' — Word Forge';
-  if(prob.type==='spell'){
-    document.getElementById('chPrompt').textContent='Spell: '+prob.hint;
-    setTimeout(()=>{if(G.challenge&&G.challenge.active)document.getElementById('chPrompt').textContent=prob.prompt},2000);
-  }else{
-    document.getElementById('chPrompt').textContent=prob.prompt;
-  }
-  document.getElementById('chReward').textContent='Reward: +'+reward.amount+' '+reward.label;
-  document.getElementById('chFeedback').textContent='';
+  document.getElementById('chPrompt').textContent=prob.answer;
+  const rewardStr='+'+reward.amount+' '+reward.label+(reward.ironBonus?', +'+reward.ironBonus+' Iron':'');
+  document.getElementById('chReward').textContent='Reward: '+rewardStr;
+  document.getElementById('chFeedback').textContent='Memorize the word...';
+  document.getElementById('chFeedback').style.color='#e8c547';
   document.getElementById('chTimer').style.width='100%';
-  const inp=document.getElementById('chInput');inp.value='';
-  setTimeout(()=>{inp.value='';inp.focus()},120);
+  document.getElementById('chVoiceStat').textContent='Tap 🔊 to hear it, 🎤 to spell it out loud';
+  const inp=document.getElementById('chInput');inp.value='';inp.disabled=true;
   sfx.chOpen();
+  speakWord(prob.answer);
 }
 
 function submitChallenge(){
   if(!G.challenge||!G.challenge.active||G.challenge.answered)return;
+  if(G.challenge.study>0)return;
   const inp=document.getElementById('chInput');
   const answer=inp.value.trim().toLowerCase();
   const correct=answer===G.challenge.problem.answer.toLowerCase();
@@ -702,9 +697,9 @@ function submitChallenge(){
     const p=G.local;
     const cap={iron:64,gold:16,diamond:8,emerald:4}[r.kind]||64;
     p.res[r.kind]=Math.min(cap,(p.res[r.kind]||0)+r.amount);
-    G.score.total++;
-    if(G.challenge.problem.type==='math')G.score.math++;else G.score.spell++;
-    pushChat('+'+r.amount+' '+r.label+'!');
+    if(r.ironBonus)p.res.iron=Math.min(64,(p.res.iron||0)+r.ironBonus);
+    G.score.total++;G.score.spell++;
+    pushChat('+'+r.amount+' '+r.label+(r.ironBonus?', +'+r.ironBonus+' Iron':'')+'!');
   }else{
     fb.textContent='✗ Answer: '+G.challenge.problem.answer;fb.style.color='#e04545';
     sfx.wrong();
@@ -713,6 +708,7 @@ function submitChallenge(){
 }
 function closeChallenge(){
   G.challenge=null;
+  try{if('speechSynthesis'in window)window.speechSynthesis.cancel();if(recog&&recogActive)recog.stop()}catch(e){}
   document.getElementById('challengeBox').style.display='none';
   if(G.state==='PLAYING'&&!isMobile)glC.requestPointerLock();else if(isMobile)ptrLock=true;
 }
@@ -723,6 +719,71 @@ document.getElementById('chInput').addEventListener('keydown',e=>{
   if(e.key==='Escape')closeChallenge();
   e.stopPropagation();
 });
+
+// ============================== VOICE (TTS + STT) ==============================
+// Free, browser-native Web Speech API. TTS works everywhere; STT works in Chromium/Edge/Safari.
+const LETTER_WORDS={a:['a','ay','eh'],b:['b','bee','be'],c:['c','see','sea','cee'],d:['d','dee','de'],e:['e','ee','ey'],f:['f','ef','eff'],g:['g','gee','jee'],h:['h','aitch','eight','ach'],i:['i','eye','aye','ai'],j:['j','jay','jae'],k:['k','kay','ok','okay'],l:['l','el','ell'],m:['m','em'],n:['n','en','in'],o:['o','oh','owe','ooh'],p:['p','pee','pea'],q:['q','cue','que'],r:['r','ar','are','arr'],s:['s','ess','es'],t:['t','tea','tee','te'],u:['u','you','yoo','ewe'],v:['v','vee','we'],w:['w','double u','doubleyou','dub','dubya'],x:['x','ex','eks'],y:['y','why','wye'],z:['z','zee','zed']};
+const WORD_TO_LETTER={};for(const L in LETTER_WORDS)for(const w of LETTER_WORDS[L])WORD_TO_LETTER[w]=L;
+function transcriptToLetters(t){
+  const s=t.toLowerCase().replace(/[.,!?;]/g,'').trim();
+  if(!s)return '';
+  // First, try as whole-word match (user said "cow" not "c o w")
+  const whole=s.replace(/\s+/g,'');
+  // Parse tokens as letters (handles "c o w", "see oh double u", etc.)
+  const toks=s.split(/\s+/);
+  let letters='';let matched=0;
+  for(let i=0;i<toks.length;i++){
+    // Try 2-word tokens first for "double u", "double you"
+    if(i<toks.length-1){
+      const pair=toks[i]+' '+toks[i+1];
+      if(WORD_TO_LETTER[pair]){letters+=WORD_TO_LETTER[pair];matched++;i++;continue}
+    }
+    const tk=toks[i];
+    if(WORD_TO_LETTER[tk]){letters+=WORD_TO_LETTER[tk];matched++}
+    else if(tk.length===1&&/[a-z]/.test(tk)){letters+=tk;matched++}
+    else if(/^[a-z]+$/.test(tk)&&tk.length<=12){letters+=tk;matched++} // fallback: treat as literal word
+  }
+  // Prefer letter-spelled result if it formed something; else fall back to whole
+  return letters||whole;
+}
+function speak(text,rate=0.9){
+  if(!('speechSynthesis'in window))return;
+  try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=rate;u.pitch=1.05;u.volume=1;window.speechSynthesis.speak(u)}catch(e){}
+}
+function speakWord(w){speak('Spell '+w+'. '+w+'.',0.85)}
+
+let recog=null,recogActive=false;
+function initRecog(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return null;
+  const r=new SR();r.continuous=false;r.interimResults=false;r.lang='en-US';r.maxAlternatives=3;
+  r.onresult=(ev)=>{
+    const alts=[];
+    for(let i=0;i<ev.results[0].length;i++)alts.push(ev.results[0][i].transcript);
+    // Try each alternative; pick one that matches expected word, else use first
+    const expected=G.challenge&&G.challenge.problem?G.challenge.problem.answer:'';
+    let chosen='';
+    for(const a of alts){const p=transcriptToLetters(a);if(p===expected){chosen=p;break}}
+    if(!chosen)chosen=transcriptToLetters(alts[0]);
+    const inp=document.getElementById('chInput');
+    inp.value=chosen;
+    document.getElementById('chVoiceStat').textContent='Heard: "'+alts[0]+'" → '+chosen+(chosen===expected?' ✓':' (press Enter to submit, or 🎤 to try again)');
+    // Auto-submit only if correct — lets kid retry on mismatch
+    if(G.challenge&&G.challenge.study<=0&&chosen===expected)submitChallenge();
+  };
+  r.onerror=(e)=>{document.getElementById('chVoiceStat').textContent='Mic error: '+e.error;recogActive=false};
+  r.onend=()=>{recogActive=false;document.getElementById('chMic').textContent='🎤'};
+  return r;
+}
+function startListening(){
+  if(!recog)recog=initRecog();
+  if(!recog){document.getElementById('chVoiceStat').textContent='Voice input not supported in this browser. Try Chrome or Edge.';return}
+  if(recogActive)return;
+  if(G.challenge&&G.challenge.study>0){document.getElementById('chVoiceStat').textContent='Wait for the word to hide...';return}
+  try{recog.start();recogActive=true;document.getElementById('chMic').textContent='🔴';document.getElementById('chVoiceStat').textContent='Listening... spell it out loud (like "c. o. w.")'}catch(e){document.getElementById('chVoiceStat').textContent='Mic unavailable: '+e.message}
+}
+document.getElementById('chSpeak').addEventListener('click',()=>{if(G.challenge&&G.challenge.problem)speakWord(G.challenge.problem.answer)});
+document.getElementById('chMic').addEventListener('click',startListening);
 
 // ============================== PLAYER ==============================
 class Player{
@@ -743,7 +804,7 @@ class Player{
   rmItem(i,n=1){const s=this.inv[i];if(!s)return;s.n-=n;if(s.n<=0)this.inv[i]=null}
   findSlot(n){for(let i=0;i<9;i++)if(this.inv[i]&&this.inv[i].item===n)return i;return-1}
   effect(k,d){this.effects[k]=d}
-  speed(){let s=CFG.PLAYER_SPEED;if(this.sprint)s*=CFG.SPRINT_MULT;if(this.effects.speed)s*=1.4;return s}
+  speed(){let s=CFG.PLAYER_SPEED;if(this.isAI)s*=0.6;if(this.sprint)s*=CFG.SPRINT_MULT;if(this.effects.speed)s*=1.4;return s}
   meleeDmg(){
     let d=CFG.FIST_DMG;
     if(this.isAI&&this.swordTier>0)d=[3,5,7,9][this.swordTier-1]||3;
@@ -877,7 +938,8 @@ function updateTNT(dt){
 // ============================== MERCHANT ==============================
 const SITEMS=[
   {name:'Cement x16',cost:{iron:10},fn:p=>p.addItem('cement',16)},
-  {name:'Stone x4',cost:{iron:8},fn:p=>p.addItem('stone',4)},
+  {name:'Cement x8',cost:{iron:5},fn:p=>p.addItem('cement',8)},
+  {name:'Stone x4',cost:{iron:6},fn:p=>p.addItem('stone',4)},
   {name:'Obsidian x1',cost:{diamond:2},fn:p=>p.addItem('obsidian',1)},
   {name:'Wood Sword',cost:{iron:4},req:p=>p.swordTier<1,fn:p=>{p.swordTier=1;p.addItem('sword',1)}},
   {name:'Stone Sword',cost:{gold:3},req:p=>p.swordTier<2,fn:p=>{p.swordTier=2;p.addItem('sword',1)}},
@@ -968,14 +1030,16 @@ function aiUpdate(ai,dt){
   // Jerry gets smarter at higher grades
   if(ai.aiChCD<=0){
     const g=G.grade||1;
-    const spd=Math.max(3,10-g*1.5);
+    const spd=Math.max(5,13-g*1.5);
     ai.aiChCD=spd+Math.random()*spd;
-    const skill=0.2+g*0.1;
-    if(Math.random()<skill){ai.res.iron=Math.min(64,ai.res.iron+1+Math.floor(g/2))}
-    if(Math.random()<skill*.5){ai.res.gold=Math.min(16,ai.res.gold+1)}
-    if(Math.random()<skill*.2){ai.res.diamond=Math.min(8,ai.res.diamond+1)}
+    const skill=0.15+g*0.08;
+    if(Math.random()<skill){ai.res.iron=Math.min(64,ai.res.iron+1)}
+    if(Math.random()<skill*.4){ai.res.gold=Math.min(16,ai.res.gold+1)}
+    if(Math.random()<skill*.15){ai.res.diamond=Math.min(8,ai.res.diamond+1)}
   }
-  if(ai.aiBuyCD<=0){ai.aiBuyCD=3;aiBuy(ai)}
+  if(ai.aiBuyCD<=0){ai.aiBuyCD=5;aiBuy(ai)}
+  // Dawdle: randomly pause between actions
+  if(Math.random()<0.015&&ai.aiCD<=0){ai.aiCD=1+Math.random()*2.5}
   const agg=G.time<CFG.AI_PASSIVE?0:1;
   const myEgg=G.eggs[ai.team];
   let threat=null;
@@ -1512,11 +1576,18 @@ function renderHUD(){
       }
     }
   }
-  // Challenge timer update
-  if(G.challenge&&G.challenge.active&&!G.challenge.answered){
-    G.challenge.timer-=1/60;
-    document.getElementById('chTimer').style.width=(G.challenge.timer/G.challenge.maxTimer*100)+'%';
-    if(G.challenge.timer<=0){document.getElementById('chFeedback').textContent='TIME UP!';document.getElementById('chFeedback').style.color='#e8c547';sfx.wrong();G.challenge.answered=true;setTimeout(closeChallenge,1000)}
+  // Challenge study-phase countdown (shows word for 10s, then hides it)
+  if(G.challenge&&G.challenge.active&&!G.challenge.answered&&G.challenge.study>0){
+    G.challenge.study-=1/60;
+    document.getElementById('chTimer').style.width=Math.max(0,G.challenge.study/10*100)+'%';
+    if(G.challenge.study<=0){
+      document.getElementById('chPrompt').textContent='SPELL IT!';
+      document.getElementById('chFeedback').textContent='';
+      document.getElementById('chTimer').style.width='0%';
+      document.getElementById('chVoiceStat').textContent='Type or tap 🎤 to speak. 🔊 replays the word.';
+      const inp=document.getElementById('chInput');inp.disabled=false;inp.focus();
+      if(G.challenge.problem)speakWord(G.challenge.problem.answer);
+    }
   }
 }
 function drawItemH(c,x,y,s,name,p){
