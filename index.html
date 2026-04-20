@@ -746,9 +746,24 @@ function transcriptToLetters(t){
   // Prefer letter-spelled result if it formed something; else fall back to whole
   return letters||whole;
 }
+let preferredVoice=null;
+function pickVoice(){
+  if(!('speechSynthesis'in window))return null;
+  const voices=window.speechSynthesis.getVoices();if(!voices||!voices.length)return null;
+  const en=voices.filter(v=>(v.lang||'').toLowerCase().startsWith('en'));
+  const pool=en.length?en:voices;
+  const prio=[/Natural/i,/Neural/i,/Online/i,/Google US English/i,/Google UK English Female/i,/Microsoft Aria/i,/Microsoft Jenny/i,/Microsoft Ava/i,/Samantha/i,/Karen/i,/Serena/i,/Moira/i,/Microsoft Zira/i];
+  for(const pat of prio){const v=pool.find(x=>pat.test(x.name));if(v)return v}
+  const us=pool.find(v=>v.lang==='en-US');if(us)return us;
+  return pool[0]||voices[0]||null;
+}
+function ensureVoice(){if(!preferredVoice)preferredVoice=pickVoice();return preferredVoice}
+if('speechSynthesis'in window){
+  try{window.speechSynthesis.getVoices();window.speechSynthesis.addEventListener('voiceschanged',()=>{preferredVoice=pickVoice()})}catch(e){}
+}
 function speak(text,rate=0.9){
   if(!('speechSynthesis'in window))return;
-  try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=rate;u.pitch=1.05;u.volume=1;window.speechSynthesis.speak(u)}catch(e){}
+  try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=rate;u.pitch=1.05;u.volume=1;const v=ensureVoice();if(v){u.voice=v;u.lang=v.lang||'en-US'}else{u.lang='en-US'}window.speechSynthesis.speak(u)}catch(e){}
 }
 function speakWord(w){speak('Spell '+w+'. '+w+'.',0.85)}
 
